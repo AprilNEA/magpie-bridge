@@ -48,10 +48,21 @@ private let ledgerJSON = """
         let nov7 = stacks.filter { $0.label == "Nov 7" }.map { ($0.name, $0.value) }
         #expect(nov7.map(\.0) == ["A", "B", "其他"])
         #expect(nov7.map(\.1) == [200, 50, 50])
-        // 第二天 A 和 B 就是全部，没有「其他」这一段。
+        // 第二天 A 和 B 就是全部，「其他」这一段还在、只是 0：面积图要每条线每个桶都有点。
         let nov8 = stacks.filter { $0.label == "Nov 8" }.map { ($0.name, $0.value) }
-        #expect(nov8.map(\.0) == ["A", "B"])
-        #expect(nov8.map(\.1) == [100, 200])
+        #expect(nov8.map(\.0) == ["A", "B", "其他"])
+        #expect(nov8.map(\.1) == [100, 200, 0])
+    }
+
+    @Test func topsAccumulateTheStacksOfOneBucket() throws {
+        let stacks = ChartData.stacks(in: try ledger(), by: .model, metric: .tokens, keep: 2)
+        let nov7 = ChartData.tops(of: stacks, at: "Nov 7")
+        #expect(nov7.map(\.name) == ["A", "B", "其他"])
+        #expect(nov7.map(\.value) == [200, 250, 300])
+        // 为 0 的那段没有自己的顶。
+        let nov8 = ChartData.tops(of: stacks, at: "Nov 8")
+        #expect(nov8.map(\.name) == ["A", "B"])
+        #expect(nov8.map(\.value) == [100, 300])
     }
 
     @Test func slicesAreFractionsOfTheWholePeriod() throws {

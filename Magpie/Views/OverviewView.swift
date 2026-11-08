@@ -6,6 +6,7 @@ struct OverviewView: View {
 
     @State private var period = UsagePeriod.week
     @State private var metric = UsageMetric.tokens
+    @State private var style = TrendChart.Style.bars
     @State private var dimension = Dimension.model
     /// 图表的数据：这个时段的账本（只要第一页，趋势和份额每页都带）。
     @State private var ledger: RequestLedger?
@@ -98,12 +99,22 @@ struct OverviewView: View {
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
             chartBody(identifier: "overview.trend") { ledger in
-                TrendChart(ledger: ledger, dimension: dimension, metric: metric)
+                TrendChart(ledger: ledger, dimension: dimension, metric: metric, style: style)
             }
         } header: {
             HStack {
                 Text("趋势")
                 Spacer()
+                Picker("图形", selection: $style) {
+                    ForEach(TrendChart.Style.allCases) { style in
+                        Image(systemName: style.symbol)
+                            .accessibilityLabel(style.title)
+                            .tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+                .accessibilityIdentifier("overview.style")
                 Picker("指标", selection: $metric) {
                     ForEach(UsageMetric.allCases) { metric in
                         Text(metric.title).tag(metric)

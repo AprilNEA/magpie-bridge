@@ -49,11 +49,14 @@ nonisolated enum ChartData {
         return names
     }
 
-    /// 每个桶、每个领先成员一段；桶里剩下的量算到「其他」。量为 0 的不出段。
+    /// 每个桶、图例上每个名字一段，桶里剩下的量算到「其他」。
+    /// 量为 0 也出段：柱子画不出来无所谓，面积图里每条线每个桶都得有点，不然堆叠会错位。
     static func stacks(
         in ledger: RequestLedger, by dimension: Dimension, metric: UsageMetric, keep: Int = keep
     ) -> [Stack] {
         let leaders = leaders(in: ledger, by: dimension, metric: metric, keep: keep)
+        let hasOther =
+            names(in: ledger, by: dimension, metric: metric, keep: keep).last == otherName
         var out: [Stack] = []
         for point in ledger.series {
             let parts = point.parts(by: dimension)
@@ -61,16 +64,23 @@ nonisolated enum ChartData {
             for leader in leaders {
                 let value = parts[leader.id].map(metric.value(of:)) ?? 0
                 counted += value
-                if value > 0 {
-                    out.append(Stack(label: point.label, name: leader.name, value: value))
-                }
+                out.append(Stack(label: point.label, name: leader.name, value: value))
             }
-            let rest = metric.value(of: point.totals) - counted
-            if rest > 0.000_001 {
+            if hasOther {
+                let rest = max(0, metric.value(of: point.totals) - counted)
                 out.append(Stack(label: point.label, name: otherName, value: rest))
             }
         }
         return out
+    }
+
+    /// 一个桶里每一段堆上去以后的高度，面积图选中时在这些位置点点。量为 0 的那段没有自己的顶。
+    static func tops(of stacks: [Stack], at label: String) -> [(name: String, value: Double)] {
+        var height = 0.0
+        return stacks.filter { $0.label == label && $0.value > 0 }.map { stack in
+            height += stack.value
+            return (stack.name, height)
+        }
     }
 
     /// 环形图的份额：领先成员加「其他」，按整个时段的合计算占比。

@@ -81,6 +81,23 @@ final class SignInFlowUITests: XCTestCase {
             XCTAssertTrue(waitUntilGone(selection), app.debugDescription)
         }
 
+        // 同一份数据切成面积图，点一下也要能选中；看完切回柱子。
+        let area = app.buttons["面积图"].firstMatch
+        XCTAssertTrue(area.waitForExistence(timeout: 5), app.debugDescription)
+        if area.exists, trendShown {
+            area.tap()
+            sleep(1)
+            shot(app, "overview-area")
+            let point = trend.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.45))
+            point.tap()
+            let selection = element(app, "overview.selection")
+            XCTAssertTrue(selection.waitForExistence(timeout: 5), app.debugDescription)
+            shot(app, "overview-area-selected")
+            point.tap()
+            XCTAssertTrue(waitUntilGone(selection), app.debugDescription)
+            app.buttons["柱状图"].firstMatch.tap()
+        }
+
         // 换指标：费用。
         let metric = element(app, "overview.metric")
         XCTAssertTrue(metric.waitForExistence(timeout: 5), app.debugDescription)

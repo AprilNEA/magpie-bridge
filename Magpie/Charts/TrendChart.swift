@@ -1,12 +1,34 @@
 import Charts
 import SwiftUI
 
-/// 一个时段的用量按桶堆起来的柱状图：点一根柱子，看那个桶里各家的量；再点一下取消。
+/// 一个时段的用量按桶堆起来，画成柱子或平滑的面积：点一个桶，看那个桶里各家的量；再点一下取消。
 /// 桶多到一屏放不下（30 天、全部）就能横向滚动，一开始停在最近的桶。
 struct TrendChart: View {
+    /// 同一份堆叠数据画成柱子还是面积。
+    enum Style: String, CaseIterable, Identifiable {
+        case bars, area
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .bars: "柱状图"
+            case .area: "面积图"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .bars: "chart.bar.xaxis"
+            case .area: "chart.xyaxis.line"
+            }
+        }
+    }
+
     let ledger: RequestLedger
     let dimension: Dimension
     let metric: UsageMetric
+    let style: Style
 
     @State private var selectedLabel: String?
 
@@ -35,19 +57,45 @@ struct TrendChart: View {
             } else {
                 Chart {
                     ForEach(stacks) { stack in
-                        BarMark(
-                            x: .value("时间", stack.label),
-                            y: .value(metric.title, stack.value)
-                        )
-                        .cornerRadius(2)
-                        .foregroundStyle(by: .value(dimension.title, stack.name))
-                        .opacity(
-                            selectedPoint == nil || selectedPoint?.label == stack.label ? 1 : 0.35)
+                        if style == .area {
+                            AreaMark(
+                                x: .value("时间", stack.label),
+                                y: .value(metric.title, stack.value)
+                            )
+                            .interpolationMethod(.monotone)
+                            .foregroundStyle(by: .value(dimension.title, stack.name))
+                        } else {
+                            BarMark(
+                                x: .value("时间", stack.label),
+                                y: .value(metric.title, stack.value)
+                            )
+                            .cornerRadius(2)
+                            .foregroundStyle(by: .value(dimension.title, stack.name))
+                            .opacity(
+                                selectedPoint == nil || selectedPoint?.label == stack.label
+                                    ? 1 : 0.35)
+                        }
                     }
                     if let point = selectedPoint {
                         RuleMark(x: .value("时间", point.label))
                             .foregroundStyle(.secondary.opacity(0.4))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        // 面积图压不暗别的桶，改成在选中的桶上每一层的顶点一个点。
+                        if style == .area {
+                            ForEach(ChartData.tops(of: stacks, at: point.label), id: \.name) {
+                                top in
+                                PointMark(
+                                    x: .value("时间", point.label),
+                                    y: .value(metric.title, top.value)
+                                )
+                                .symbol {
+                                    Circle()
+                                        .fill(ChartData.color(of: top.name, in: names))
+                                        .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
+                                        .frame(width: 9, height: 9)
+                                }
+                            }
+                        }
                     }
                 }
                 .chartForegroundStyleScale(domain: names, range: ChartData.styles(for: names))
