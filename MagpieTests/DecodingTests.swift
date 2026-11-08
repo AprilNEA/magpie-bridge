@@ -97,6 +97,29 @@ import Testing
         #expect(upstream.failed)
     }
 
+    /// 30 天的时间轴按天切成 30 个桶，只有最后一天有调用；by 里是整个时段的份额。
+    @Test func requestLedgerSeriesAndShares() throws {
+        let ledger = try MagpieJSON.decoder().decode(RequestLedger.self, from: fixture("requests"))
+        #expect(ledger.bucket == .day)
+        #expect(ledger.series.count == 30)
+        #expect(ledger.series.first?.label == "Oct 10")
+        #expect(ledger.series.first?.totals.calls == 0)
+        #expect(ledger.series.first?.parts(by: .agent).isEmpty == true)
+
+        let today = try #require(ledger.series.last)
+        #expect(today.label == "Nov 8")
+        #expect(today.totals.calls == 4)
+        #expect(today.parts(by: .agent)["claude"]?.calls == 3)
+        #expect(today.parts(by: .agent)["codex"]?.calls == 1)
+        #expect(today.parts(by: .provider)["deepseek"] == SeriesPart(calls: 4))
+
+        #expect(ledger.shares(by: .agent).map(\.name) == ["Claude Code", "Codex"])
+        #expect(ledger.shares(by: .agent).first?.totals.calls == 3)
+        #expect(ledger.shares(by: .provider).map(\.id) == ["deepseek"])
+        // 模型没有单独的显示名，就用 id。
+        #expect(ledger.shares(by: .model).first?.name == "deepseek-v4-flash")
+    }
+
     @Test func requestRowFailureRules() throws {
         let json = """
             [{"t":"2026-11-08T08:00:00Z","status":200,"in":10,"out":5,"cache_read":3,"cache_write":1},

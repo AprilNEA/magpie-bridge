@@ -1,4 +1,4 @@
-.PHONY: generate format lint build test ui-test check
+.PHONY: generate format lint build test ui-test check demo-gateway
 
 DESTINATION ?= platform=iOS Simulator,name=iPhone 17 Pro
 XCODEBUILD = xcodebuild -project Magpie.xcodeproj -scheme Magpie -derivedDataPath .build/DerivedData
@@ -30,3 +30,7 @@ ui-test:
 	$(XCODEBUILD) -destination '$(DESTINATION)' -only-testing:MagpieUITests test
 
 check: lint build test
+
+# 不连真网关也能看页面：本地起一个带 90 天假数据的演示网关，密钥是 sk-magpie-key-demo。
+demo-gateway:
+	python3 scripts/demo_gateway.py --port 3427

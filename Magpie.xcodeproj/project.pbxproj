@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B57C6784FBB8F38C658F035 /* LimitGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DF222F2F57F045A153B9119 /* LimitGauge.swift */; };
+		2C7AB5671DA6F1EA886C129B /* ChartDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 861F097CF19528FF67595961 /* ChartDataTests.swift */; };
 		3373B692CFB7D234F81988C8 /* requests.json in Resources */ = {isa = PBXBuildFile; fileRef = 235C3840A99A5A9BCDEC1215 /* requests.json */; };
 		370F803CFF750CD9BF40E3CA /* UsageTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B5FB4DB5D7575D305380844 /* UsageTotals.swift */; };
 		393E6FCC229465141791CBA4 /* limit.json in Resources */ = {isa = PBXBuildFile; fileRef = D39AD74239A566AC85BE4529 /* limit.json */; };
@@ -20,11 +22,13 @@
 		6CE53CC2C89145A84D0FF40D /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = AACE4E83F6272867A782D3A2 /* Support.swift */; };
 		6D1BEE43A17A8A99E13B25D8 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BD5FA1452E3131A1FD8C45 /* Session.swift */; };
 		761C7CDF7E40ABB555839891 /* SetupSnippet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D5949A6C875DF2FB711BB9 /* SetupSnippet.swift */; };
+		7A645258BADE8275073F5B2B /* UsageSeries.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD60EA13D8B9891C6E2F0D62 /* UsageSeries.swift */; };
 		8370A3FA2FA8C40D28D89403 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44EE1EB7171DC3183D81FB4B /* SettingsView.swift */; };
 		8899050141E314047EE6B161 /* SnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C5FF8222E7CBBE000C3959 /* SnippetTests.swift */; };
 		89C7A6D7220E31065234832F /* MagpieApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24390990CB6F7BD8C970A3C /* MagpieApp.swift */; };
 		9300B8787A4078BD2C2E6382 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1213B6FF9F6BB36A0DFFD667 /* MainTabView.swift */; };
 		968914267130F57C66C96F69 /* Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333A19D72BCAEFC1645E83EC /* Format.swift */; };
+		97A66C4727F3C064BC993DCB /* TrendChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46BE37DD8EE73FD7FB13538 /* TrendChart.swift */; };
 		A75F9E759480217A95E37A0F /* LimitStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C8DE3EBFBA147BA7E3BAF36 /* LimitStatus.swift */; };
 		B7C575E1F7E93DF2D197424D /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EEAAC35A0848060B9550E37 /* CredentialStore.swift */; };
 		B9F793E1B76631014751E1D5 /* Credential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 276FC107B8EF4953B102C505 /* Credential.swift */; };
@@ -32,8 +36,10 @@
 		C9C9C18DB8118D69AA49A444 /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2AB4B35B1895CA6F0D293A /* DecodingTests.swift */; };
 		D118DEA41DF76AC863759B5F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC03595C6918B10C9F3806EF /* Assets.xcassets */; };
 		D3DED2AEA6D4D9DD5B4E5122 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C541E260CFD56A203D282DD /* SetupView.swift */; };
+		DB4ABE633F5374DBA143A822 /* ShareChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D290C7743FC38B9D039AA1 /* ShareChart.swift */; };
 		EA8EAECB3D456C73BB4FA2BC /* ClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DFA1B9EE65ADAED8BC77D47 /* ClientTests.swift */; };
 		EC15D0AF217FBCD161D7F8A0 /* me.json in Resources */ = {isa = PBXBuildFile; fileRef = 52DB541A2B2BF0577D1005DE /* me.json */; };
+		F641A13DABB00639C1E54042 /* ChartData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C362B4F0077D091249EFBA8C /* ChartData.swift */; };
 		FB1A8730B9355632CFA88B2F /* MagpieClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 834EBC182C011EB5ABE3E880 /* MagpieClient.swift */; };
 		FC55E50996FFE2E896031760 /* KeyLimit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A0EA9F90BDEBCDF44169F32 /* KeyLimit.swift */; };
 /* End PBXBuildFile section */
@@ -66,6 +72,7 @@
 		235C3840A99A5A9BCDEC1215 /* requests.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = requests.json; sourceTree = "<group>"; };
 		260122D82C615A18425CB599 /* SignInFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInFlowUITests.swift; sourceTree = "<group>"; };
 		276FC107B8EF4953B102C505 /* Credential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Credential.swift; sourceTree = "<group>"; };
+		2DF222F2F57F045A153B9119 /* LimitGauge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitGauge.swift; sourceTree = "<group>"; };
 		333A19D72BCAEFC1645E83EC /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
 		33C5FF8222E7CBBE000C3959 /* SnippetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetTests.swift; sourceTree = "<group>"; };
 		3A0EA9F90BDEBCDF44169F32 /* KeyLimit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyLimit.swift; sourceTree = "<group>"; };
@@ -76,18 +83,23 @@
 		532DADA5C134BE30D58A7701 /* KeyInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyInfo.swift; sourceTree = "<group>"; };
 		7C541E260CFD56A203D282DD /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		834EBC182C011EB5ABE3E880 /* MagpieClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MagpieClient.swift; sourceTree = "<group>"; };
+		861F097CF19528FF67595961 /* ChartDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartDataTests.swift; sourceTree = "<group>"; };
 		88D5949A6C875DF2FB711BB9 /* SetupSnippet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupSnippet.swift; sourceTree = "<group>"; };
+		99D290C7743FC38B9D039AA1 /* ShareChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareChart.swift; sourceTree = "<group>"; };
 		9B5FB4DB5D7575D305380844 /* UsageTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageTotals.swift; sourceTree = "<group>"; };
 		9DFA1B9EE65ADAED8BC77D47 /* ClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientTests.swift; sourceTree = "<group>"; };
 		9EEAAC35A0848060B9550E37 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
 		A1892E718E4AE0CD28A7289C /* MagpieUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MagpieUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3BD5FA1452E3131A1FD8C45 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		AACE4E83F6272867A782D3A2 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
+		C362B4F0077D091249EFBA8C /* ChartData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartData.swift; sourceTree = "<group>"; };
 		C8D68C81F01454E1BD2A1ADE /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		CC03595C6918B10C9F3806EF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CD60EA13D8B9891C6E2F0D62 /* UsageSeries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSeries.swift; sourceTree = "<group>"; };
 		D39AD74239A566AC85BE4529 /* limit.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = limit.json; sourceTree = "<group>"; };
 		DE2AB4B35B1895CA6F0D293A /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
 		E2EF46CB22047CA6CA2494FF /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		E46BE37DD8EE73FD7FB13538 /* TrendChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendChart.swift; sourceTree = "<group>"; };
 		F24390990CB6F7BD8C970A3C /* MagpieApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MagpieApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -150,6 +162,7 @@
 				3C8DE3EBFBA147BA7E3BAF36 /* LimitStatus.swift */,
 				08B7B1347C682E1484591535 /* RequestLedger.swift */,
 				4B850920EB04F54C0104A8F5 /* UsagePeriod.swift */,
+				CD60EA13D8B9891C6E2F0D62 /* UsageSeries.swift */,
 				9B5FB4DB5D7575D305380844 /* UsageTotals.swift */,
 			);
 			path = Model;
@@ -168,6 +181,7 @@
 		97D7676FC10BDD734D2D7DDF /* MagpieTests */ = {
 			isa = PBXGroup;
 			children = (
+				861F097CF19528FF67595961 /* ChartDataTests.swift */,
 				9DFA1B9EE65ADAED8BC77D47 /* ClientTests.swift */,
 				DE2AB4B35B1895CA6F0D293A /* DecodingTests.swift */,
 				0067F6FA5B5077F9D25C9ADC /* SessionTests.swift */,
@@ -195,12 +209,24 @@
 				F24390990CB6F7BD8C970A3C /* MagpieApp.swift */,
 				A3BD5FA1452E3131A1FD8C45 /* Session.swift */,
 				88D5949A6C875DF2FB711BB9 /* SetupSnippet.swift */,
+				F497601EC41EC9EB997A2B59 /* Charts */,
 				8B17546F19C4A3D0177A66A7 /* Model */,
 				A4D6D193E11CA3313A36A417 /* Networking */,
 				7D17321C575FA9FDF3B92E08 /* Storage */,
 				517CA3DFB3A1B81913FC13FA /* Views */,
 			);
 			path = Magpie;
+			sourceTree = "<group>";
+		};
+		F497601EC41EC9EB997A2B59 /* Charts */ = {
+			isa = PBXGroup;
+			children = (
+				C362B4F0077D091249EFBA8C /* ChartData.swift */,
+				2DF222F2F57F045A153B9119 /* LimitGauge.swift */,
+				99D290C7743FC38B9D039AA1 /* ShareChart.swift */,
+				E46BE37DD8EE73FD7FB13538 /* TrendChart.swift */,
+			);
+			path = Charts;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -332,6 +358,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2C7AB5671DA6F1EA886C129B /* ChartDataTests.swift in Sources */,
 				EA8EAECB3D456C73BB4FA2BC /* ClientTests.swift in Sources */,
 				C9C9C18DB8118D69AA49A444 /* DecodingTests.swift in Sources */,
 				3AC810DF62F51C94251D1C92 /* SessionTests.swift in Sources */,
@@ -344,11 +371,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F641A13DABB00639C1E54042 /* ChartData.swift in Sources */,
 				B9F793E1B76631014751E1D5 /* Credential.swift in Sources */,
 				B7C575E1F7E93DF2D197424D /* CredentialStore.swift in Sources */,
 				968914267130F57C66C96F69 /* Format.swift in Sources */,
 				C15428695035B6C4E1D8094D /* KeyInfo.swift in Sources */,
 				FC55E50996FFE2E896031760 /* KeyLimit.swift in Sources */,
+				0B57C6784FBB8F38C658F035 /* LimitGauge.swift in Sources */,
 				A75F9E759480217A95E37A0F /* LimitStatus.swift in Sources */,
 				89C7A6D7220E31065234832F /* MagpieApp.swift in Sources */,
 				FB1A8730B9355632CFA88B2F /* MagpieClient.swift in Sources */,
@@ -360,8 +389,11 @@
 				8370A3FA2FA8C40D28D89403 /* SettingsView.swift in Sources */,
 				761C7CDF7E40ABB555839891 /* SetupSnippet.swift in Sources */,
 				D3DED2AEA6D4D9DD5B4E5122 /* SetupView.swift in Sources */,
+				DB4ABE633F5374DBA143A822 /* ShareChart.swift in Sources */,
 				4C3FD0CCFEB73AC370D2520C /* SignInView.swift in Sources */,
+				97A66C4727F3C064BC993DCB /* TrendChart.swift in Sources */,
 				60D5C2C4EDEE75085EA41D65 /* UsagePeriod.swift in Sources */,
+				7A645258BADE8275073F5B2B /* UsageSeries.swift in Sources */,
 				370F803CFF750CD9BF40E3CA /* UsageTotals.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

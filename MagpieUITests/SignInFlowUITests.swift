@@ -1,6 +1,7 @@
 import XCTest
 
-/// 对着真实网关走一遍：错密钥报错、对密钥进入四个页面、忘记密钥回到输入页。
+/// 对着一个网关（真的，或 scripts/demo_gateway.py）走一遍：错密钥报错、对密钥进入四个页面、
+/// 切图表的时间范围和维度、忘记密钥回到输入页。
 /// 需要 MAGPIE_TEST_GATEWAY_URL 和 MAGPIE_TEST_GATEWAY_KEY；
 /// 给了 MAGPIE_SCREENSHOT_DIR 就把每个页面的截图存进去。
 final class SignInFlowUITests: XCTestCase {
@@ -39,10 +40,65 @@ final class SignInFlowUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["额度"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["用量"].exists)
+        XCTAssertTrue(app.staticTexts["趋势"].exists)
+        let trend = element(app, "overview.trend")
+        let trendShown = trend.waitForExistence(timeout: 20)
+        XCTAssertTrue(trendShown, app.debugDescription)
         shot(app, "overview")
+
+        // 趋势图的下半截压在标签栏底下，先滚上来；然后点一根柱子，上面浮出那个时间段的明细。
+        scroll(app, by: 0.4)
+        if trendShown {
+            let bar = trend.coordinate(withNormalizedOffset: CGVector(dx: 0.72, dy: 0.45))
+            bar.tap()
+            let selection = element(app, "overview.selection")
+            XCTAssertTrue(selection.waitForExistence(timeout: 5), app.debugDescription)
+            shot(app, "overview-selected")
+            // 再点一下取消（点到柱子或点到卡片都行），后面的截图不要带着压暗的柱子。
+            bar.tap()
+            XCTAssertTrue(waitUntilGone(selection), app.debugDescription)
+        }
+
+        // 换时间范围，趋势图和下面的汇总要跟着换。
+        app.buttons["30 天"].firstMatch.tap()
+        let summary = app.staticTexts["overview.summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 20), app.debugDescription)
+        if summary.exists {
+            XCTAssertTrue(summary.label.hasPrefix("30 天："), summary.label)
+        }
+        shot(app, "overview-30d")
+
+        // 换指标：费用。
+        let metric = element(app, "overview.metric")
+        XCTAssertTrue(metric.waitForExistence(timeout: 5), app.debugDescription)
+        if metric.exists {
+            metric.tap()
+            let cost = app.buttons["费用"].firstMatch
+            if cost.waitForExistence(timeout: 5) {
+                cost.tap()
+            }
+            sleep(1)
+            shot(app, "overview-cost")
+        }
+
+        scroll(app, by: 0.5)
+        let share = element(app, "overview.share")
+        XCTAssertTrue(share.waitForExistence(timeout: 10), app.debugDescription)
+        shot(app, "overview-breakdown")
+        app.buttons["Agent"].firstMatch.tap()
+        sleep(1)
+        if share.exists {
+            // 点环上的一块，中间换成它的名字和占比。
+            share.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+            XCTAssertTrue(
+                element(app, "overview.share.selected").waitForExistence(timeout: 5),
+                app.debugDescription)
+        }
+        shot(app, "overview-agents")
 
         app.tabBars.buttons["请求"].tap()
         XCTAssertTrue(app.staticTexts["requests.summary"].waitForExistence(timeout: 20))
+        XCTAssertTrue(element(app, "requests.trend").waitForExistence(timeout: 10))
         let firstRow = app.staticTexts["requests.row.model"].firstMatch
         XCTAssertTrue(firstRow.waitForExistence(timeout: 10))
         shot(app, "requests")
@@ -70,6 +126,28 @@ final class SignInFlowUITests: XCTestCase {
         app.buttons["settings.forget"].tap()
         app.buttons["确定忘记"].tap()
         XCTAssertTrue(app.secureTextFields["signin.key"].waitForExistence(timeout: 10))
+    }
+
+    /// 图表这类不是按钮也不是文字的东西，按 accessibilityIdentifier 找。
+    @MainActor
+    private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    @MainActor
+    private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: element)
+        return XCTWaiter().wait(for: [gone], timeout: timeout) == .completed
+    }
+
+    /// 沿着左边的留白往上拖，拖多少滚多少；不从图表上起手，免得被它的选择手势接走。
+    @MainActor
+    private func scroll(_ app: XCUIApplication, by fraction: CGFloat) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.85))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.85 - fraction))
+        start.press(
+            forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
     }
 
     /// List 里 NavigationLink 的内容在 iOS 26 上算不出命中点（{-1, -1}），直接 tap() 会被吞掉；

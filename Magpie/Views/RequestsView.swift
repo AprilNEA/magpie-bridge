@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 /// 这把密钥自己的调用记录，最新的在前，往下翻自动加载下一页。
@@ -8,6 +9,7 @@ struct RequestsView: View {
     @State private var rows: [RequestRow] = []
     @State private var total = 0
     @State private var totals = UsageTotals()
+    @State private var series: [SeriesPoint] = []
     @State private var loading = false
     @State private var failure: String?
 
@@ -22,6 +24,10 @@ struct RequestsView: View {
                 .pickerStyle(.segmented)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
+                if series.contains(where: { $0.totals.calls > 0 }) {
+                    CallsSparkline(series: series)
+                        .accessibilityIdentifier("requests.trend")
+                }
             } footer: {
                 if total > 0 {
                     Text(summary)
@@ -88,6 +94,7 @@ struct RequestsView: View {
             rows = ledger.rows
             total = ledger.total
             totals = ledger.totals
+            series = ledger.series
             failure = nil
         } catch {
             failure = error.localizedDescription
@@ -105,6 +112,40 @@ struct RequestsView: View {
         } catch {
             failure = error.localizedDescription
         }
+    }
+}
+
+/// 列表顶上的小图：每个桶成功和失败各多少次。
+private struct CallsSparkline: View {
+    let series: [SeriesPoint]
+
+    var body: some View {
+        Chart(series) { point in
+            BarMark(
+                x: .value("时间", point.label),
+                y: .value("成功", point.totals.calls - point.totals.errors)
+            )
+            .foregroundStyle(Color.accentColor.gradient)
+            BarMark(x: .value("时间", point.label), y: .value("失败", point.totals.errors))
+                .foregroundStyle(Color.red.gradient)
+        }
+        .chartXScale(domain: series.map(\.label))
+        .chartXAxis {
+            let shown = Set(ChartData.axisLabels(series.map(\.label)))
+            AxisMarks { value in
+                if let label = value.as(String.self), shown.contains(label) {
+                    AxisValueLabel { Text(label) }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
+        }
+        .frame(height: 96)
+        .padding(.vertical, 6)
     }
 }
 
@@ -142,10 +183,10 @@ struct RequestRowView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             HStack(spacing: 10) {
-                Label(Format.tokens(row.input), systemImage: "arrow.up")
-                Label(Format.tokens(row.output), systemImage: "arrow.down")
+                TokenStat(value: row.input, icon: "arrow.up")
+                TokenStat(value: row.output, icon: "arrow.down")
                 if row.cacheRead > 0 {
-                    Label(Format.tokens(row.cacheRead), systemImage: "bolt")
+                    TokenStat(value: row.cacheRead, icon: "bolt")
                 }
                 Spacer()
                 if row.priced {
@@ -153,11 +194,27 @@ struct RequestRowView: View {
                 }
                 Text(Format.duration(ms: row.millis))
             }
+            .lineLimit(1)
             .font(.caption2)
             .foregroundStyle(.secondary)
             .monospacedDigit()
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// 一行里的一个 token 数：箭头加数字。不用 Label——它在这行的 HStack 里会把数字挤成竖排。
+private struct TokenStat: View {
+    let value: Int
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: icon)
+            Text(Format.tokens(value))
+                .fixedSize()
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -1,8 +1,16 @@
 import SwiftUI
 
-/// 网页 /me 的上半部分：额度、用量、最常用的模型。
+/// 网页 /me 的上半部分加上图表：额度圆环、用量数字、按时间的趋势、按模型 / Agent / 提供方的构成。
 struct OverviewView: View {
     let session: Session
+
+    @State private var period = UsagePeriod.week
+    @State private var metric = UsageMetric.tokens
+    @State private var dimension = Dimension.model
+    /// 图表的数据：这个时段的账本（只要第一页，趋势和份额每页都带）。
+    @State private var ledger: RequestLedger?
+    @State private var ledgerError: String?
+    @State private var loadingLedger = false
 
     var body: some View {
         List {
@@ -15,7 +23,8 @@ struct OverviewView: View {
                 }
                 limits(info)
                 usage(info)
-                topModels(info)
+                trend
+                breakdown
                 if info.readOnly {
                     Section {
                         Text("这个密钥只能查看用量，不能调用模型。")
@@ -34,17 +43,18 @@ struct OverviewView: View {
                     } description: {
                         Text(session.refreshError ?? "")
                     } actions: {
-                        Button("重试") { Task { await session.refresh() } }
+                        Button("重试") { Task { await refresh() } }
                     }
                 }
             }
         }
         .navigationTitle(session.info?.name ?? "概览")
-        .refreshable { await session.refresh() }
+        .task(id: period) { await loadLedger() }
+        .refreshable { await refresh() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("刷新", systemImage: "arrow.clockwise") {
-                    Task { await session.refresh() }
+                    Task { await refresh() }
                 }
                 .disabled(session.isRefreshing)
             }
@@ -55,9 +65,13 @@ struct OverviewView: View {
         Section("额度") {
             if info.limits.isEmpty {
                 Text("这个密钥没有额度限制。").foregroundStyle(.secondary)
-            }
-            ForEach(info.limits) { limit in
-                LimitRow(limit: limit)
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(info.limits) { limit in
+                        LimitGauge(limit: limit)
+                    }
+                }
+                .padding(.vertical, 6)
             }
         }
     }
@@ -73,74 +87,126 @@ struct OverviewView: View {
         }
     }
 
-    private func topModels(_ info: KeyInfo) -> some View {
-        Section("最近 30 天最常用") {
-            if info.topModels.isEmpty {
-                Text("还没有用量。").foregroundStyle(.secondary)
-            }
-            ForEach(info.topModels) { model in
-                HStack {
-                    Text(model.id)
-                        .font(.callout.monospaced())
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer()
-                    Text(
-                        "\(Format.count(model.totals.calls)) 次 · \(Format.tokens(model.totals.tokens)) tokens"
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+    private var trend: some View {
+        Section {
+            Picker("时间范围", selection: $period) {
+                ForEach(UsagePeriod.allCases) { period in
+                    Text(period.title).tag(period)
                 }
             }
-        }
-    }
-}
-
-private struct LimitRow: View {
-    let limit: LimitStatus
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+            .pickerStyle(.segmented)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            chartBody(identifier: "overview.trend") { ledger in
+                TrendChart(ledger: ledger, dimension: dimension, metric: metric)
+            }
+        } header: {
             HStack {
-                Text(limit.title).font(.headline)
+                Text("趋势")
                 Spacer()
-                if limit.spent {
-                    Text("已用完，重置后恢复")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.red.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.red)
+                Picker("指标", selection: $metric) {
+                    ForEach(UsageMetric.allCases) { metric in
+                        Text(metric.title).tag(metric)
+                    }
                 }
+                .pickerStyle(.menu)
+                .textCase(nil)
+                .font(.footnote)
+                .accessibilityIdentifier("overview.metric")
             }
-            if let cap = limit.costLimit, cap > 0 {
-                bar(
-                    fraction: limit.cost / cap,
-                    text: "已用 \(Format.usd(limit.cost)) / \(Format.usd(cap))")
-            }
-            if let cap = limit.tokenLimit, cap > 0 {
-                bar(
-                    fraction: Double(limit.tokens) / Double(cap),
-                    text: "已用 \(Format.tokens(limit.tokens)) / \(Format.tokens(cap)) tokens")
-            }
-            if let reset = limit.resetsAt {
-                Text("\(Format.when(reset)) 重置")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        } footer: {
+            if let ledger {
+                Text(summary(of: ledger))
+                    .accessibilityIdentifier("overview.summary")
             }
         }
-        .padding(.vertical, 2)
     }
 
-    private func bar(fraction: Double, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ProgressView(value: min(max(fraction, 0), 1))
-                .tint(fraction >= 1 ? Color.red : Color.accentColor)
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+    private var breakdown: some View {
+        Section("构成") {
+            Picker("维度", selection: $dimension) {
+                ForEach(Dimension.allCases) { dimension in
+                    Text(dimension.title).tag(dimension)
+                }
+            }
+            .pickerStyle(.segmented)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            chartBody(identifier: "overview.share") { ledger in
+                let slices = ChartData.slices(in: ledger, by: dimension, metric: metric)
+                let names = slices.map(\.name)
+                if slices.isEmpty {
+                    Text("这段时间没有\(metric.title.lowercased())。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                } else {
+                    ShareChart(slices: slices, names: names, dimension: dimension, metric: metric)
+                        .padding(.vertical, 4)
+                }
+            }
+            if let ledger {
+                let slices = ChartData.slices(in: ledger, by: dimension, metric: metric)
+                let names = slices.map(\.name)
+                ForEach(slices) { slice in
+                    ShareRow(
+                        slice: slice, color: ChartData.color(of: slice.name, in: names),
+                        metric: metric)
+                }
+            }
+        }
+    }
+
+    /// 图表所在的那一行：有数据画图，没拿到数据转圈或报错。
+    @ViewBuilder
+    private func chartBody<Content: View>(
+        identifier: String, @ViewBuilder content: (RequestLedger) -> Content
+    ) -> some View {
+        VStack(alignment: .leading) {
+            if let ledger {
+                content(ledger)
+            } else if loadingLedger {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            } else if let ledgerError {
+                Label(ledgerError, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    private func summary(of ledger: RequestLedger) -> String {
+        var parts = [
+            "\(Format.count(ledger.totals.calls)) 次请求",
+            "\(Format.tokens(ledger.totals.tokens)) tokens",
+        ]
+        if ledger.totals.errors > 0 {
+            parts.append("\(Format.count(ledger.totals.errors)) 次失败")
+        }
+        if ledger.totals.cost > 0 {
+            parts.append("约 \(Format.usd(ledger.totals.cost))")
+        }
+        return "\(period.title)：" + parts.joined(separator: " · ")
+    }
+
+    private func refresh() async {
+        await session.refresh()
+        await loadLedger()
+    }
+
+    private func loadLedger() async {
+        guard let client = session.client else { return }
+        loadingLedger = true
+        defer { loadingLedger = false }
+        do {
+            ledger = try await client.requests(period: period, limit: 1)
+            ledgerError = nil
+        } catch {
+            ledgerError = error.localizedDescription
         }
     }
 }

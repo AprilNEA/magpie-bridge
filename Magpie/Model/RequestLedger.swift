@@ -9,6 +9,15 @@ nonisolated struct RequestLedger: Decodable, Sendable {
     var total: Int
     /// 整个时间窗口的合计，和 rows 平铺在同一个对象里。
     var totals: UsageTotals
+    /// 整个时间窗口按 bucket 切开的时间轴，每页都带，和翻页无关。
+    var bucket: Bucket
+    var series: [SeriesPoint]
+    /// 整个时间窗口按维度（Dimension 的原始值）汇总的份额，tokens 多的在前。
+    var by: [String: [UsageShare]]
+
+    func shares(by dimension: Dimension) -> [UsageShare] {
+        by[dimension.rawValue] ?? []
+    }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -17,10 +26,14 @@ nonisolated struct RequestLedger: Decodable, Sendable {
         offset = try container.decodeIfPresent(Int.self, forKey: .offset) ?? 0
         total = try container.decodeIfPresent(Int.self, forKey: .total) ?? 0
         totals = try UsageTotals(from: decoder)
+        let bucketName = try container.decodeIfPresent(String.self, forKey: .bucket) ?? ""
+        bucket = Bucket(rawValue: bucketName) ?? .day
+        series = try container.decodeIfPresent([SeriesPoint].self, forKey: .series) ?? []
+        by = try container.decodeIfPresent([String: [UsageShare]].self, forKey: .by) ?? [:]
     }
 
     private enum CodingKeys: CodingKey {
-        case period, rows, offset, total
+        case period, rows, offset, total, bucket, series, by
     }
 }
 
