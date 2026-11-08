@@ -91,14 +91,21 @@ nonisolated enum ChartData {
         return slices
     }
 
-    /// 横轴上标出来的刻度：最多七个，均匀挑，最后一个（最近的桶）一定标出来。
-    static func axisLabels(_ labels: [String]) -> [String] {
-        let stride = max(1, Int((Double(labels.count) / 7).rounded(.up)))
+    /// 横轴上标出来的刻度：一屏最多 limit 个，均匀挑，最后一个（最近的桶）一定标出来。
+    /// 图能横向滚动时传 window（一屏几个桶），刻度按一屏的密度挑，而不是按整段。
+    static func axisLabels(_ labels: [String], window: Int? = nil, limit: Int = 7) -> [String] {
+        let perScreen = min(window ?? labels.count, labels.count)
+        let stride = max(1, Int((Double(perScreen) / Double(limit)).rounded(.up)))
         let last = labels.count - 1
         return labels.enumerated().filter { (last - $0.offset) % stride == 0 }.map(\.element)
     }
 
     static let palette: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .mint]
+
+    /// 画图用的填充：和 colors 一样的顺序，每种颜色带一点由亮到暗的渐变。
+    static func styles(for names: [String]) -> [AnyGradient] {
+        colors(for: names).map(\.gradient)
+    }
 
     /// 和 names 一一对应的颜色；「其他」永远是灰的。
     static func colors(for names: [String]) -> [Color] {

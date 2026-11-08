@@ -85,6 +85,16 @@ private let ledgerJSON = """
         #expect(ChartData.axisLabels(labels) == shown.map(String.init))
     }
 
+    /// 能滚动的图按一屏的桶数挑刻度：30 个桶、一屏 15 个、一屏最多 5 个刻度，就是每 3 个标一个。
+    @Test func axisLabelsThinOutByTheVisibleWindow() {
+        let labels = (0..<30).map(String.init)
+        let shown = ChartData.axisLabels(labels, window: 15, limit: 5)
+        #expect(shown == [2, 5, 8, 11, 14, 17, 20, 23, 26, 29].map(String.init))
+        #expect(
+            ChartData.axisLabels(labels, window: 60, limit: 5)
+                == ChartData.axisLabels(labels, limit: 5))
+    }
+
     @Test func otherIsAlwaysGrayAndTheRestDiffer() {
         let names = ["A", "B", ChartData.otherName, "C"]
         let colors = ChartData.colors(for: names)

@@ -53,6 +53,7 @@ final class SignInFlowUITests: XCTestCase {
             bar.tap()
             let selection = element(app, "overview.selection")
             XCTAssertTrue(selection.waitForExistence(timeout: 5), app.debugDescription)
+            XCTAssertTrue(app.frame.contains(selection.frame), "明细卡片跑到屏幕外了：\(selection.frame)")
             shot(app, "overview-selected")
             // 再点一下取消（点到柱子或点到卡片都行），后面的截图不要带着压暗的柱子。
             bar.tap()
@@ -67,6 +68,18 @@ final class SignInFlowUITests: XCTestCase {
             XCTAssertTrue(summary.label.hasPrefix("30 天："), summary.label)
         }
         shot(app, "overview-30d")
+
+        // 30 天的图能横向滚动，停在最近的桶；滚动的图上点一根也要能选中、明细卡片要对得上。
+        if trendShown {
+            let bar = trend.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.45))
+            bar.tap()
+            let selection = element(app, "overview.selection")
+            XCTAssertTrue(selection.waitForExistence(timeout: 5), app.debugDescription)
+            XCTAssertTrue(app.frame.contains(selection.frame), "明细卡片跑到屏幕外了：\(selection.frame)")
+            shot(app, "overview-30d-selected")
+            bar.tap()
+            XCTAssertTrue(waitUntilGone(selection), app.debugDescription)
+        }
 
         // 换指标：费用。
         let metric = element(app, "overview.metric")

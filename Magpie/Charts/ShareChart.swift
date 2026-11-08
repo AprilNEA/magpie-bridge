@@ -23,7 +23,7 @@ struct ShareChart: View {
             .foregroundStyle(by: .value(dimension.title, slice.name))
             .opacity(selected == nil || selected?.name == slice.name ? 1 : 0.35)
         }
-        .chartForegroundStyleScale(domain: names, range: ChartData.colors(for: names))
+        .chartForegroundStyleScale(domain: names, range: ChartData.styles(for: names))
         .chartLegend(.hidden)
         // 和趋势图一样不用系统的按住选择，点一下选、再点或点中间取消。
         .chartOverlay { proxy in

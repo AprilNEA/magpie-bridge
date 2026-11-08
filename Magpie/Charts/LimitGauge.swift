@@ -9,9 +9,15 @@ struct LimitGauge: View {
             ZStack {
                 Circle()
                     .stroke(Color(.systemFill), style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                // 弧从淡到深，深的一头是用到哪儿了。渐变的角度和 trim 一样从 0 起算，再一起转到顶上。
                 Circle()
-                    .trim(from: 0, to: min(max(fraction, 0.001), 1))
-                    .stroke(color, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                    .trim(from: 0, to: arc)
+                    .stroke(
+                        AngularGradient(
+                            colors: [color.opacity(0.4), color], center: .center,
+                            startAngle: .zero, endAngle: .degrees(360 * arc)),
+                        style: StrokeStyle(lineWidth: 9, lineCap: .round)
+                    )
                     .rotationEffect(.degrees(-90))
                     .animation(.easeOut(duration: 0.6), value: fraction)
                 VStack(spacing: 0) {
@@ -61,6 +67,11 @@ struct LimitGauge: View {
             return Double(limit.tokens) / Double(cap)
         }
         return 0
+    }
+
+    /// 画出来的那段弧：0 也画一点点，超过 1 封顶。
+    private var arc: Double {
+        min(max(fraction, 0.001), 1)
     }
 
     private var usedText: String {

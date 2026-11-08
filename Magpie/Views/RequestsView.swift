@@ -120,14 +120,41 @@ private struct CallsSparkline: View {
     let series: [SeriesPoint]
 
     var body: some View {
+        let hasErrors = series.contains { $0.totals.errors > 0 }
         Chart(series) { point in
-            BarMark(
+            AreaMark(
                 x: .value("时间", point.label),
-                y: .value("成功", point.totals.calls - point.totals.errors)
+                y: .value("请求", point.totals.calls),
+                series: .value("类别", "请求")
             )
-            .foregroundStyle(Color.accentColor.gradient)
-            BarMark(x: .value("时间", point.label), y: .value("失败", point.totals.errors))
-                .foregroundStyle(Color.red.gradient)
+            .interpolationMethod(.monotone)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [Color.accentColor.opacity(0.45), Color.accentColor.opacity(0.02)],
+                    startPoint: .top, endPoint: .bottom))
+            LineMark(
+                x: .value("时间", point.label),
+                y: .value("请求", point.totals.calls),
+                series: .value("类别", "请求")
+            )
+            .interpolationMethod(.monotone)
+            .foregroundStyle(Color.accentColor)
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            if hasErrors {
+                LineMark(
+                    x: .value("时间", point.label),
+                    y: .value("失败", point.totals.errors),
+                    series: .value("类别", "失败")
+                )
+                .interpolationMethod(.monotone)
+                .foregroundStyle(.red)
+                .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            }
+            if point.id == series.last?.id {
+                PointMark(x: .value("时间", point.label), y: .value("请求", point.totals.calls))
+                    .symbolSize(60)
+                    .foregroundStyle(Color.accentColor)
+            }
         }
         .chartXScale(domain: series.map(\.label))
         .chartXAxis {
@@ -144,7 +171,7 @@ private struct CallsSparkline: View {
                 AxisValueLabel()
             }
         }
-        .frame(height: 96)
+        .frame(height: 110)
         .padding(.vertical, 6)
     }
 }
