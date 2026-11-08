@@ -1,0 +1,26 @@
+import Foundation
+
+/// 页面上数字和时间的写法，和网页 /me 保持一致。
+nonisolated enum Format {
+    /// 1.2万、35K 这样的紧凑写法。
+    static func tokens(_ count: Int) -> String {
+        count.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
+    }
+
+    static func count(_ count: Int) -> String {
+        count.formatted()
+    }
+
+    /// 100 美元以上不显示分。
+    static func usd(_ amount: Double) -> String {
+        amount >= 100 ? "$" + Int(amount.rounded()).formatted() : String(format: "$%.2f", amount)
+    }
+
+    static func when(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+    }
+
+    static func duration(ms: Int64) -> String {
+        ms < 1000 ? "\(ms) ms" : String(format: "%.1f s", Double(ms) / 1000)
+    }
+}

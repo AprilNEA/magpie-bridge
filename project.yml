@@ -1,0 +1,89 @@
+name: Magpie
+options:
+  bundleIdPrefix: com.aprilnea
+  deploymentTarget:
+    iOS: "26.0"
+  xcodeVersion: "26.6"
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hans
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+targets:
+  Magpie:
+    type: application
+    platform: iOS
+    sources:
+      - path: Magpie
+    info:
+      path: Magpie/Info.plist
+      properties:
+        CFBundleDisplayName: Magpie
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # 登录页预填的网关地址，见 settings.base.MAGPIE_DEFAULT_GATEWAY_URL。
+        MagpieDefaultGatewayURL: $(MAGPIE_DEFAULT_GATEWAY_URL)
+        # 开发时连本机的 magpie serve（http://localhost:3425）。
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aprilnea.magpie
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # 登录页预填的网关地址；空字符串则不预填。
+        MAGPIE_DEFAULT_GATEWAY_URL: https://magpie.example.com
+  MagpieTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MagpieTests
+    dependencies:
+      - target: Magpie
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aprilnea.magpie.tests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+  MagpieUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MagpieUITests
+    dependencies:
+      - target: Magpie
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aprilnea.magpie.uitests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Magpie
+        # XCTestCase 的构造器是 nonisolated 的，默认 MainActor 隔离会和它冲突。
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+schemes:
+  Magpie:
+    build:
+      targets:
+        Magpie: all
+    test:
+      targets:
+        - MagpieTests
+        - MagpieUITests
+      gatherCoverageData: true
