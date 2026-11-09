@@ -1,8 +1,8 @@
-# Magpie for iOS
+# Magpie for Apple platforms
 
 English · [简体中文](README.zh-CN.md)
 
-The [magpie](https://github.com/badlogic/magpie) gateway's `/me` page as an iOS app. Anyone holding a gateway key can check their limits, usage, request history, and available models on their phone, and copy the configuration for Claude Code, Codex, or any OpenAI-compatible tool.
+The [magpie](https://github.com/badlogic/magpie) gateway's `/me` page as a native app for Apple platforms, iOS today. Anyone holding a gateway key can check their limits, usage, request history, and available models on their phone, and copy the configuration for Claude Code, Codex, or any OpenAI-compatible tool.
 
 The app calls only the endpoints a key can reach on its own: `/v1/magpie/me`, `/v1/magpie/limit`, and `/v1/magpie/usage/requests`. No gateway changes and no admin key needed. The UI is Chinese only for now.
 

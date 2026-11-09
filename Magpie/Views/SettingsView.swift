@@ -42,7 +42,7 @@ struct SettingsView: View {
             }
             Section("关于") {
                 LabeledContent("版本", value: Self.appVersion)
-                if let url = URL(string: "https://github.com/AprilNEA/magpie-ios") {
+                if let url = URL(string: "https://github.com/AprilNEA/magpie-apple") {
                     Link("源代码", destination: url)
                 }
             }
