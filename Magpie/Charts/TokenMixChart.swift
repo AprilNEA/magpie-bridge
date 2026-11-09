@@ -1,8 +1,9 @@
 import Charts
 import SwiftUI
 
-/// 一个时段的 tokens 按输入、输出、缓存读取、缓存写入分成四段的一条横条，
-/// 下面每类一行：量和占比靠右对齐，和构成图的图例一个样子，名字和数字都不会被挤省略。
+/// One period's tokens as a single horizontal bar split into four segments: input, output, cache
+/// read, cache write. Below it, one row per kind: amount and share right-aligned, styled like the
+/// breakdown chart's legend, so neither names nor numbers get squeezed into ellipses.
 struct TokenMixChart: View {
     let totals: UsageTotals
 

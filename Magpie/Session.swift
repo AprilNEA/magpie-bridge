@@ -1,15 +1,15 @@
 import Foundation
 import Observation
 
-/// 当前登录的网关密钥和它最近一次 /me 的结果。
+/// The currently signed-in gateway key and its most recent /me result.
 @Observable
 final class Session {
     private(set) var credential: Credential?
     private(set) var info: KeyInfo?
-    /// info 是什么时候拿到的。
+    /// When info was received.
     private(set) var refreshedAt: Date?
     private(set) var isRefreshing = false
-    /// 最近一次刷新失败的原因；成功后清除。
+    /// Why the most recent refresh failed; cleared after a success.
     private(set) var refreshError: String?
 
     private let store: CredentialStore
@@ -25,7 +25,8 @@ final class Session {
         credential.map { MagpieClient(baseURL: $0.baseURL, key: $0.key, transport: transport) }
     }
 
-    /// 登录页预填的地址：上次用过的，否则工程里配置的默认网关。
+    /// Address prefilled on the sign-in page: the last one used, otherwise the default gateway
+    /// configured in the project.
     var lastAddress: String? {
         store.address
     }
@@ -44,7 +45,7 @@ final class Session {
         }
     }
 
-    /// 先用 /v1/magpie/me 验证密钥，通过才保存。
+    /// Verifies the key with /v1/magpie/me first and saves it only once that passes.
     func signIn(address: String, key: String) async throws(SignInFailure) {
         guard let url = Credential.gatewayURL(from: address) else {
             throw .badAddress
@@ -78,7 +79,7 @@ final class Session {
             refreshedAt = Date()
             refreshError = nil
         } catch MagpieError.invalidKey {
-            // 密钥被停用或删除：和网页一样回到输入页。
+            // The key was disabled or deleted: go back to the entry page, as the web page does.
             signOut()
         } catch {
             refreshError = error.localizedDescription

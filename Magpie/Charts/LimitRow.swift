@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// 一条额度的明细行：名字和已用 / 上限、进度条、剩余多少、调用次数和重置时间。
-/// 概览页的圆环只给比例，设置页用这个把数字写全。
+/// Detail row for one limit: name and used / cap, a progress bar, how much is left, call count, and
+/// reset time.
+/// The gauge on the overview tab only gives the fraction; the settings tab uses this row to spell
+/// out the numbers.
 struct LimitRow: View {
     let limit: LimitStatus
 

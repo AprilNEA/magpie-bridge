@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""演示网关：按 magpie 网关 /v1/magpie/* 的格式，返回一把密钥最近 90 天的假用量。
+"""Demo gateway: returns fake usage for one key over the last 90 days in the format of the magpie gateway's
+/v1/magpie/* endpoints.
 
-不需要真网关也能把 App 跑起来看图表，UI 测试和截图也用它。数据由固定种子生成，每次一样；
-只有时间跟着现在走。用法：
+Lets the App run and show its charts without a real gateway; the UI tests and screenshots use it too. The data
+comes from a fixed seed and is the same every run; only the time follows the present. Usage:
 
     python3 scripts/demo_gateway.py --port 3427 --key sk-magpie-key-demo
 
-端点：/v1/magpie/me、/v1/magpie/limit、/v1/magpie/usage/requests?period=&offset=&limit=。
-请求记录还认 failed=1、model=、agent=、provider=、q= 这几个筛选，和真网关一样在服务器上筛，
-合计、时间轴和份额都跟着筛。密钥不对回 401，格式和真网关一样。
+Endpoints: /v1/magpie/me, /v1/magpie/limit, /v1/magpie/usage/requests?period=&offset=&limit=.
+The request ledger also accepts the filters failed=1, model=, agent=, provider=, and q=, filtering on the server
+like the real gateway does; totals, series, and shares follow the filter. A wrong key gets a 401 in the same
+format as the real gateway.
 """
 
 import argparse
@@ -25,7 +27,7 @@ VERSION = "0.1.3314"
 KEY_NAME = "demo"
 DAYS = 90
 
-# id, 显示名, 提供方, Agent, 每百万 tokens 的价格（输入、输出、缓存读、缓存写）, 被选中的权重
+# id, display name, provider, Agent, price per million tokens (input, output, cache read, cache write), selection weight
 MODELS = [
     ("claude-sonnet-4-5", "Claude Sonnet 4.5", "anthropic", "claude", (3, 15, 0.3, 3.75), 0.42),
     ("claude-opus-4-1", "Claude Opus 4.1", "anthropic", "claude", (15, 75, 1.5, 18.75), 0.13),
@@ -41,9 +43,9 @@ PROVIDERS = {
 }
 HOSTS = {"anthropic": "api.anthropic.com", "openai": "api.openai.com", "deepseek": "api.deepseek.com"}
 AGENTS = {"claude": ("Claude Code", "claudecode-color"), "codex": ("Codex", "codex-color")}
-# 网关自己拒绝的请求要的模型：这把密钥不能用的。
+# Models asked for by requests the gateway itself rejects: ones this key cannot use.
 UNKNOWN_MODELS = ["openai/gpt-5", "anthropic/claude-3-opus", "deepseek/deepseek-r1"]
-# 一天里每个小时的活跃程度：上午、下午、晚上三个高峰。
+# Activity level for each hour of the day: three peaks, morning, afternoon, and evening.
 HOUR_WEIGHTS = [1, 0.5, 0.3, 0.2, 0.2, 0.4, 1, 2, 4, 6, 7, 6, 4, 5, 7, 8, 7, 6, 4, 4, 5, 6, 4, 2]
 ERRORS = [
     (529, "overloaded_error", "Overloaded"),
@@ -52,14 +54,14 @@ ERRORS = [
 ]
 LIMIT_5H_USD = 2.5
 LIMIT_WEEK_USD = 40.0
-# 这把密钥是在另一把受限的密钥下签发的：签发者每月的额度，所有签出去的密钥一起算。
+# This key was issued under another held key: the issuer's monthly limit, counted across every key it issued.
 LIMIT_ISSUER_MONTH_USD = 300.0
-# 签发者签出去的密钥数，签发者额度里的用量按这个倍数算。
+# Number of keys the issuer issued; usage in the issuer's limit is multiplied by this.
 ISSUED_KEYS = 3
-# 这把密钥能用的 MCP 服务器和工具，格式同 access.Key.MCP。
+# MCP servers and tools this key may use, in the same format as access.Key.MCP.
 MCP = ["web-search", "github/search_code", "github/get_file_contents"]
 EXPIRES_IN_DAYS = 45
-# 今天格外忙，不管是不是周末：打开 App 的那一刻总有东西可看。
+# Today is especially busy, weekend or not: there is always something to see the moment the App opens.
 TODAY_BOOST = 2.2
 
 
@@ -72,7 +74,7 @@ def day_start(t):
 
 
 def make_rows(now):
-    """最近 DAYS 天的调用，工作日多、周末少，越近越多。"""
+    """Calls over the last DAYS days: more on weekdays, fewer on weekends, and more the closer to now."""
     rng = random.Random(7)
     rows = []
     today = day_start(now)
@@ -95,7 +97,8 @@ def make_rows(now):
 
 
 def make_call(rng, t):
-    """一次请求留下的行：通常一行；偶尔先失败一次再换一次重试成功（两行），或被网关拒绝。"""
+    """Rows one request leaves behind: usually one; occasionally a first failure and then a successful retry (two
+    rows), or a rejection by the gateway."""
     roll = rng.random()
     if roll < 0.005:
         return [reject(rng, t)]
@@ -119,7 +122,7 @@ def make_row(rng, t):
         status, err_type, message = rng.choice(ERRORS)
         err = f"{PROVIDERS[provider][0]}: {message}"
         cache_read, cache_write, out, reasoning = 0, 0, 0, 0
-        # 有的错误是换了一家还不行才回给 Agent 的。
+        # Some errors reach the Agent only after switching to another provider also failed.
         tries = 2 if rng.random() < 0.4 else 0
     elif roll < 0.055:
         status, err, canceled = 499, "context canceled", True
@@ -163,7 +166,8 @@ def make_row(rng, t):
 
 
 def handed_on_try(rng, row, t):
-    """row 之前失败、被网关转给下一次尝试的那一行：只有输入，没有输出，不算一次调用。"""
+    """The row that failed before row and was handed on by the gateway to the next try: input only, no output,
+    and not counted as a call."""
     status, err_type, message = rng.choice(ERRORS)
     first = {k: v for k, v in row.items() if k != "tries"}
     first.update(
@@ -187,7 +191,8 @@ def handed_on_try(rng, row, t):
 
 
 def reject(rng, t):
-    """网关自己拒绝的请求：要的模型这把密钥没有，没发给任何提供方，不算一次调用。"""
+    """A request the gateway itself rejected: this key does not have the model asked for, nothing was sent to any
+    provider, and it is not counted as a call."""
     agent = rng.choice(list(AGENTS))
     return {
         "t": rfc3339(t),
@@ -224,17 +229,18 @@ def cost_of(row):
 
 
 def failed(row):
-    """usage.Record.Failed：回了错误或记了错误，且不是 Agent 自己取消。"""
+    """usage.Record.Failed: returned an error or recorded one, and the Agent did not cancel it itself."""
     return (row["status"] >= 400 or bool(row.get("err"))) and not row.get("canceled")
 
 
 def lost(row):
-    """usage.Record.LostRequest：Agent 真的收到了错误的请求，failed=1 筛的就是它。"""
+    """usage.Record.LostRequest: a request whose error the Agent actually received; failed=1 filters for this."""
     return failed(row) and not row.get("handed_on")
 
 
 def counted(rows):
-    """算作一次调用的行：被网关拒绝的和转给下一次尝试的不算，tokens 和费用照加。"""
+    """Rows that count as a call: rows rejected by the gateway or handed on to the next try do not, though their
+    tokens and cost are still added."""
     return [r for r in rows if not r.get("rejected") and not r.get("handed_on")]
 
 
@@ -264,7 +270,7 @@ def part(rows):
 
 
 def keeps(row, filt):
-    """usage.Filter.keepsRecord 里一把密钥用得上的几项；q 在模型、提供方、主机和密钥名里找。"""
+    """The parts of usage.Filter.keepsRecord one key can use; q searches the model, provider, host, and key name."""
     if filt.get("failed") and not lost(row):
         return False
     for field in ("model", "agent", "provider"):
@@ -277,7 +283,8 @@ def keeps(row, filt):
 
 
 def apply(rows, filt, skip=None):
-    """筛过的行；skip 是不参与的那一项，by[skip] 用，这样选了一个模型，其他模型还在下拉里。"""
+    """The filtered rows; skip is the one filter left out, used for by[skip], so that when a model is selected the
+    other models stay in the dropdown."""
     if skip:
         filt = {k: v for k, v in filt.items() if k != skip}
     return [r for r in rows if keeps(r, filt)]
@@ -299,7 +306,7 @@ DIMENSIONS = ["agent", "callerKey", "model", "modelAt", "provider"]
 
 
 def breakdown(rows, dimension):
-    """按维度分的份额；被网关拒绝的行没有模型和提供方，不在任何一份里。"""
+    """Shares split by dimension; rows rejected by the gateway have no model or provider and belong to no share."""
     groups = {}
     for r in rows:
         if r.get("rejected"):
@@ -317,7 +324,7 @@ def breakdown(rows, dimension):
 
 
 def timeline(period, now):
-    """时段的起点、桶的大小和每个桶的起点。"""
+    """The start of the period, the bucket size, and the start of each bucket."""
     today = day_start(now)
     if period == "today":
         return today, "hour", [today + timedelta(hours=h) for h in range(24)]
@@ -362,7 +369,7 @@ def group_by(rows, dimension):
 
 
 def named(table, ids):
-    """筛选菜单用的 Agent 或提供方列表，只有这个时间窗口里出现过的。"""
+    """The Agent or provider list for the filter menu, only those seen within this time window."""
     return [{"id": k, "name": v[0], "icon": v[1]} for k, v in table.items() if k in ids]
 
 
@@ -466,7 +473,8 @@ class Demo:
 
 
 def status(period, extra, rows, start, reset, cap, keys=1):
-    """一条额度现在的窗口（budget.Status）：窗口内调用的合计对着上限；keys 把用量算成几把密钥的。"""
+    """The current window of one limit (budget.Status): the totals of calls in the window against the cap; keys
+    scales the usage up to that many keys."""
     t = totals([r for r in rows if r["_time"] >= start])
     cost = round(t["cost"] * keys, 4)
     return {

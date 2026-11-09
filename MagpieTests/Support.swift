@@ -5,14 +5,14 @@ import Testing
 
 private final class FixtureMarker {}
 
-/// MagpieTests/Fixtures 里本地网关（v0.1.3314）的真实响应。
+/// Real responses from a local gateway (v0.1.3314), kept in MagpieTests/Fixtures.
 func fixture(_ name: String) throws -> Data {
     let url = try #require(
         Bundle(for: FixtureMarker.self).url(forResource: name, withExtension: "json"))
     return try Data(contentsOf: url)
 }
 
-/// 按顺序回放预先写好的响应，并记下收到的请求。
+/// Replays prepared responses in order and records the requests received.
 actor FakeTransport: Transport {
     struct Reply {
         var status: Int
@@ -47,7 +47,7 @@ actor FakeTransport: Transport {
     }
 }
 
-/// 内存里的钥匙串；failWith 不为空时每次操作都失败。
+/// An in-memory Keychain; when failWith is set, every operation fails.
 final class MemoryKeychain: KeychainItems {
     var items: [String: Data] = [:]
     var failWith: OSStatus?

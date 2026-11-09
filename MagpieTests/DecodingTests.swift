@@ -28,7 +28,7 @@ import Testing
         #expect(info.models.map(\.id).contains("deepseek/deepseek-v4-flash"))
     }
 
-    /// topModels 里没有 provider/ 前缀，要和 models 里带前缀的 id 对上。
+    /// topModels carries no provider/ prefix and has to match the prefixed ids in models.
     @Test func suggestedModelMatchesTopModelBySuffix() throws {
         let info = try MagpieJSON.decoder().decode(KeyInfo.self, from: fixture("me"))
         #expect(info.suggestedModel?.id == "deepseek/deepseek-v4-flash")
@@ -45,7 +45,8 @@ import Testing
         #expect(info.limits.isEmpty)
     }
 
-    /// 缓存命中按提示词（输入加缓存读写）算，失败率和平均每次按全部调用算。
+    /// Cache hits are computed over prompt tokens (input plus cache read and write); failure rate
+    /// and average per call are computed over all calls.
     @Test func usageTotalsRatesAndTokenKinds() throws {
         let json = """
             {"calls":8,"errors":2,"input":100,"output":50,"cache_read":300,"cache_write":100,
@@ -59,7 +60,7 @@ import Testing
         #expect(abs((totals.averageCost ?? 0) - 0.05) < 1e-9)
         #expect(TokenKind.allCases.map { $0.value(of: totals) } == [100, 50, 300, 100])
 
-        // 全失败、一个 token 都没有：有失败率，没有缓存命中。
+        // Every call failed and not a single token: there is a failure rate but no cache hit rate.
         let failed = try MagpieJSON.decoder().decode(
             UsageTotals.self, from: Data(#"{"calls":3,"errors":3}"#.utf8))
         #expect(failed.cacheHitRate == nil)
@@ -92,7 +93,8 @@ import Testing
         #expect(limit.models == ["claude/*", "codex/*", "deepseek/*"])
         #expect(limit.limits.map(\.title) == ["每 5 小时", "每周"])
         #expect(limit.expires == nil)
-        // 网关只在有的时候才给这些字段：没有就是不可见配额、全部 MCP、没有签发者。
+        // The gateway sends these fields only when present: absent means quotas not visible,
+        // every MCP, and no issuer.
         #expect(!limit.quotas)
         #expect(limit.quotaProviders.isEmpty)
         #expect(limit.mcpAccess == .every)
@@ -116,14 +118,15 @@ import Testing
         #expect(limit.expires != nil)
     }
 
-    /// 只有一个 "-" 是一个 MCP 都不能用；不是空列表那种「全部」。
+    /// A lone "-" means no MCP may be used; not the "every" that an empty list means.
     @Test func keyLimitMCPDashMeansNone() throws {
         let json = #"{"limited":false,"key":"k","mcp":["-"]}"#
         let limit = try MagpieJSON.decoder().decode(KeyLimit.self, from: Data(json.utf8))
         #expect(limit.mcpAccess == .none)
     }
 
-    /// 费用上限优先于 tokens 上限；用完了不管比例都算满；剩余用网关算好的数。
+    /// The cost cap takes priority over the token cap; spent counts as full whatever the ratio;
+    /// what is left uses the number the gateway computed.
     @Test func limitStatusUsageFollowsCostFirst() throws {
         let json = """
             [{"period":"day","cost":1.2,"costLimit":2.5,"costLeft":1.3,
@@ -150,11 +153,11 @@ import Testing
         #expect(ledger.total == 5)
         #expect(ledger.offset == 0)
         #expect(ledger.rows.count == 5)
-        // 被网关直接拒绝的 404 不算一次调用，所以合计是 4。
+        // The 404 rejected by the gateway outright does not count as a call, so the total is 4.
         #expect(ledger.totals.calls == 4)
         #expect(ledger.totals.errors == 4)
 
-        // 筛选菜单用的列表：受限密钥只看到自己用过的 Agent 和提供方。
+        // Lists for the filter menu: a held key sees only the Agents and providers it has used.
         #expect(ledger.agents.map(\.name) == ["Claude Code", "Codex"])
         #expect(ledger.providers.map(\.id) == ["deepseek"])
 
@@ -186,12 +189,14 @@ import Testing
         #expect(upstream.host == "api.deepseek.com")
         #expect(upstream.upBytes == 120)
         #expect(upstream.downBytes == 204)
-        // 只试了一次时网关不写 tries。
+        // The gateway omits tries when there was only one attempt.
         #expect(upstream.tries == 0)
     }
 
-    /// 老账本里被拒绝的行没有 rejected 标记：没发给提供方就回了 4xx 的也算网关拒绝（usage.Record.IsRejected）。
-    /// 失败后被转给下一次尝试的那一行算失败但不是拒绝；接手的那一次带 tries。
+    /// Rejected rows in an old ledger carry no rejected flag: a 4xx returned without reaching a
+    /// provider also counts as rejected by the gateway (usage.Record.IsRejected). A row that failed
+    /// and was handed on to the next try counts as failed but not rejected; the try that took over
+    /// carries tries.
     @Test func rowTellsLegacyRejectionsAndHandedOnTries() throws {
         let json = #"""
             [{"t":"2026-11-08T08:21:57Z","status":404,"err":"unknown model"},
@@ -215,7 +220,8 @@ import Testing
         #expect(named.map(\.name) == ["curl", "Codex", "x"])
     }
 
-    /// 30 天的时间轴按天切成 30 个桶，只有最后一天有调用；by 里是整个时段的份额。
+    /// The 30-day series is cut by day into 30 buckets, and only the last day has calls; by holds
+    /// the shares for the whole period.
     @Test func requestLedgerSeriesAndShares() throws {
         let ledger = try MagpieJSON.decoder().decode(RequestLedger.self, from: fixture("requests"))
         #expect(ledger.bucket == .day)
@@ -234,7 +240,7 @@ import Testing
         #expect(ledger.shares(by: .agent).map(\.name) == ["Claude Code", "Codex"])
         #expect(ledger.shares(by: .agent).first?.totals.calls == 3)
         #expect(ledger.shares(by: .provider).map(\.id) == ["deepseek"])
-        // 模型没有单独的显示名，就用 id。
+        // A model has no separate display name, so the id is used.
         #expect(ledger.shares(by: .model).first?.name == "deepseek-v4-flash")
     }
 

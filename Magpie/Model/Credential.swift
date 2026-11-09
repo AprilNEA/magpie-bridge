@@ -1,11 +1,12 @@
 import Foundation
 
-/// 一个网关和在它那里用的密钥。
+/// A gateway and the key used with it.
 nonisolated struct Credential: Hashable, Sendable {
     var baseURL: URL
     var key: String
 
-    /// 用户输入的网关地址：可以省略 https://，也可以带着从浏览器地址栏复制来的 /me 或 /v1。
+    /// The gateway address as the user typed it: https:// may be omitted, and a /me or /v1 copied
+    /// from the browser's address bar may be left on.
     static func gatewayURL(from text: String) -> URL? {
         var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }

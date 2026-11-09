@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 网页 /me 的「配置」：选工具和模型，复制或分享配置片段。
+/// The web /me page's "Setup": pick a tool and a model, then copy or share the config snippet.
 struct SetupView: View {
     let session: Session
 
@@ -120,7 +120,8 @@ struct ModelPickerView: View {
             }
             .tint(.primary)
         }
-        // 推入的页面默认把搜索框藏到下拉才出现；模型可能有几十个，直接露出来。
+        // A pushed page hides the search field until pulled down by default; there may be dozens
+        // of models, so show the field right away.
         .searchable(
             text: $filter, placement: .navigationBarDrawer(displayMode: .always),
             prompt: "筛选模型"

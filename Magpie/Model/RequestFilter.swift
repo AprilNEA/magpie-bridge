@@ -1,15 +1,17 @@
 import Foundation
 
-/// 请求页的筛选条件：usage.Filter 里一把密钥看自己的调用时用得上的几项。
-/// 网关在服务器上筛，所以列表、合计、时间轴和份额都是筛过的。
+/// The request page's filter: the few fields of usage.Filter that apply when a key views its own
+/// calls. The gateway filters on the server, so the list, totals, series, and shares are all
+/// filtered.
 nonisolated struct RequestFilter: Hashable, Sendable {
-    /// 只看 Agent 收到了错误的请求（failed=1）；Agent 自己取消的不算。
+    /// Only requests where the Agent received an error (failed=1); requests the Agent itself
+    /// canceled do not count.
     var failed = false
-    /// 供应商的模型 id，和 RequestRow.model 一样；空字符串不筛。
+    /// The provider's model id, the same as RequestRow.model; an empty string does not filter.
     var model = ""
     var agent = ""
     var provider = ""
-    /// 在请求的模型、提供方、上游主机、会话和密钥名里找的文本（q）。
+    /// Text to find in the requested model, provider, upstream host, session, and key name (q).
     var query = ""
 
     enum Field: String, CaseIterable, Hashable, Sendable {
@@ -18,7 +20,7 @@ nonisolated struct RequestFilter: Hashable, Sendable {
 
     var isEmpty: Bool { activeFields.isEmpty }
 
-    /// 设了的条件，按 Field 的顺序。
+    /// The conditions that are set, in Field order.
     var activeFields: [Field] {
         Field.allCases.filter { field in
             switch field {
@@ -41,7 +43,7 @@ nonisolated struct RequestFilter: Hashable, Sendable {
         }
     }
 
-    /// 加到 /v1/magpie/usage/requests 上的查询参数；没设的条件不带。
+    /// The query parameters added to /v1/magpie/usage/requests; unset conditions are left out.
     var queryItems: [URLQueryItem] {
         var items: [URLQueryItem] = []
         if failed {

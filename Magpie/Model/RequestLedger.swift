@@ -1,21 +1,23 @@
 import Foundation
 
-/// GET /v1/magpie/usage/requests 的一页：受限密钥只会看到自己的调用。
+/// One page of GET /v1/magpie/usage/requests: a held key only sees its own calls.
 nonisolated struct RequestLedger: Decodable, Sendable {
     var period: String
     var rows: [RequestRow]
     var offset: Int
-    /// 筛选后的总行数，每页都带。
+    /// The total row count after filtering, sent with every page.
     var total: Int
-    /// 整个时间窗口的合计，和 rows 平铺在同一个对象里。
+    /// The totals for the whole time window, flattened into the same object as rows.
     var totals: UsageTotals
-    /// 整个时间窗口按 bucket 切开的时间轴，每页都带，和翻页无关。
+    /// The whole time window's series, cut by bucket; sent with every page, unrelated to paging.
     var bucket: Bucket
     var series: [SeriesPoint]
-    /// 整个时间窗口按维度（Dimension 的原始值）汇总的份额，tokens 多的在前。
-    /// 被筛选选中的那个维度，份额是不带这个筛选算的，所以换着选时其他选项还在。
+    /// The whole time window's shares summed by dimension (the raw value of Dimension), with the
+    /// most tokens first. For the dimension a filter selects, the shares are computed without that
+    /// filter, so the other options stay available while switching.
     var by: [String: [UsageShare]]
-    /// 这个时间窗口里有调用的 Agent 和提供方，给筛选用；受限密钥只看到自己用过的。
+    /// Agents and providers that had calls in this time window, for the filter; a held key only
+    /// sees the ones it used.
     var agents: [Named]
     var providers: [Named]
 
@@ -43,7 +45,7 @@ nonisolated struct RequestLedger: Decodable, Sendable {
     }
 }
 
-/// 筛选项里的一个 Agent 或提供方（usageapi.Named）：id 和给人看的名字。
+/// One Agent or provider among the filter options (usageapi.Named): id and display name.
 nonisolated struct Named: Decodable, Hashable, Identifiable, Sendable {
     var id: String
     var name: String
@@ -65,7 +67,8 @@ nonisolated struct Named: Decodable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// 一次调用（usage.Row 加上页面显示用的名字）。网关不给行 id，这里本地生成。
+/// One call (usage.Row plus the names the page displays). The gateway gives no row id, so one is
+/// generated locally.
 nonisolated struct RequestRow: Decodable, Hashable, Identifiable, Sendable {
     let id = UUID()
     var time: Date
@@ -73,9 +76,9 @@ nonisolated struct RequestRow: Decodable, Hashable, Identifiable, Sendable {
     var agentName: String
     var provider: String
     var providerName: String
-    /// 供应商的模型 id；网关没转发出去的调用为空。
+    /// The provider's model id; empty for calls the gateway never forwarded.
     var model: String
-    /// Agent 请求的模型，和 model 不同时表示被改写或路由。
+    /// The model the Agent requested; if it differs from model, the call was rewritten or routed.
     var requested: String?
     var served: String?
     var endpoint: String?
@@ -85,41 +88,45 @@ nonisolated struct RequestRow: Decodable, Hashable, Identifiable, Sendable {
     var cacheWrite: Int
     var reasoning: Int
     var millis: Int64
-    /// 回给 Agent 的 HTTP 状态；从会话文件读来的调用没有，为 0。
+    /// The HTTP status returned to the Agent; a call read from a session file has none and is 0.
     var status: Int
     var error: String?
-    /// 供应商给错误起的类型名，例如 rate_limit_error。
+    /// The type name the provider gave the error, for example rate_limit_error.
     var errorType: String?
-    /// 网关自己拒绝的，没有发给任何提供方。
+    /// Rejected by the gateway itself, never sent to any provider.
     var rejected: Bool
-    /// 这一次尝试失败后网关换了一次重试，Agent 没有收到这个错误；合计里不算一次调用。
+    /// This try failed and the gateway handed on to the next try; the Agent did not receive this
+    /// error, and the totals do not count it as a call.
     var handedOn: Bool
-    /// 网关为这个请求试了几家 / 几次；只试了一次时网关不写，为 0。
+    /// How many providers / times the gateway tried for this request; the gateway leaves it out
+    /// after a single try, so 0.
     var tries: Int
-    /// 实际连的上游主机。
+    /// The upstream host actually connected to.
     var host: String?
-    /// 真正发到供应商和收回来的字节数。
+    /// The bytes actually sent to the provider and received back.
     var upBytes: Int64
     var downBytes: Int64
     var cost: Double
-    /// 模型有已知价格，cost 才有意义。
+    /// Only when the model has a known price does cost mean anything.
     var priced: Bool
-    /// Agent 自己取消的，不算失败。
+    /// Canceled by the Agent itself; not counted as failed.
     var canceled: Bool
 
     var tokens: Int { input + output + cacheRead + cacheWrite }
 
-    /// usage.Record.Failed：回了错误状态或记了错误，且不是 Agent 自己取消。
+    /// usage.Record.Failed: returned an error status or recorded an error, and was not canceled by
+    /// the Agent itself.
     var failed: Bool {
         (status >= 400 || !(error ?? "").isEmpty) && !canceled
     }
 
-    /// usage.Record.IsRejected：带标记的，加上标记出现前写下的、没发给提供方就回了错误的。
+    /// usage.Record.IsRejected: rows carrying the flag, plus rows written before the flag existed
+    /// that returned an error without being sent to a provider.
     var isRejected: Bool {
         rejected || (provider.isEmpty && status >= 400)
     }
 
-    /// 列表里显示的模型名：实际用的，否则请求的。
+    /// The model name shown in the list: the one actually used, otherwise the one requested.
     var displayModel: String {
         model.isEmpty ? (requested ?? "—") : model
     }

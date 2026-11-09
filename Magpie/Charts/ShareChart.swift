@@ -1,7 +1,8 @@
 import Charts
 import SwiftUI
 
-/// 一个时段里各家占多少的环形图，中间是合计；点一块，中间换成它的名字和占比，点中间取消。
+/// Donut chart of each member's share in one period, with the total in the center; tap a slice and
+/// the center shows that slice's name and share, tap the center to cancel.
 struct ShareChart: View {
     let slices: [ChartData.Slice]
     let names: [String]
@@ -25,7 +26,8 @@ struct ShareChart: View {
         }
         .chartForegroundStyleScale(domain: names, range: ChartData.styles(for: names))
         .chartLegend(.hidden)
-        // 和趋势图一样不用系统的按住选择，点一下选、再点或点中间取消。
+        // Like the trend chart, skip the system press-and-hold selection: tap to select, tap again
+        // or tap the center to cancel.
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
@@ -87,13 +89,14 @@ struct ShareChart: View {
         }
     }
 
-    /// 换了维度以后旧的名字可能不在了，那就当没选。
+    /// After a dimension change the old name may be gone; treat that as no selection.
     private var selected: ChartData.Slice? {
         guard let selectedName else { return nil }
         return slices.first { $0.name == selectedName }
     }
 
-    /// 手指落在环上的那一块：按角度对应的累计值找。落在中间的空心里不算任何一块。
+    /// The slice the finger landed on in the ring, found via the cumulative value at that angle.
+    /// Landing in the hollow center counts as no slice.
     private func slice(at point: CGPoint, in proxy: ChartProxy, plotSize: CGSize) -> ChartData
         .Slice?
     {
@@ -114,7 +117,7 @@ struct ShareChart: View {
     }
 }
 
-/// 环形图下面的一行：颜色、名字、量和占比，再加一条占比的细条。
+/// One row below the donut chart: color, name, amount and share, plus a thin bar for the share.
 struct ShareRow: View {
     let slice: ChartData.Slice
     let color: Color

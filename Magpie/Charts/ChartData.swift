@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// 把一页账本整理成图表吃的形状：按某个维度、某个指标，前几名各占一份，其余并成「其他」。
-/// 颜色跟着名字走，趋势图和环形图里同一个模型是同一种颜色。
+/// Shapes one ledger page into what the charts consume: by one dimension and one metric, the top
+/// few members each get a share and the rest merge into "Other".
+/// Colors follow names, so the same model gets the same color in the trend chart and the donut
+/// chart.
 nonisolated enum ChartData {
     static let otherName = "其他"
-    /// 图例最多几项；再多手机上就看不清了。
+    /// Maximum number of legend entries; any more becomes unreadable on a phone.
     static let keep = 5
 
-    /// 堆叠柱的一段：某个桶里某个成员的量。
+    /// One segment of a stacked bar: one member's amount in one bucket.
     struct Stack: Hashable, Identifiable, Sendable {
         var label: String
         var name: String
@@ -16,17 +18,17 @@ nonisolated enum ChartData {
         var id: String { label + "/" + name }
     }
 
-    /// 环形图的一块。
+    /// One slice of the donut chart.
     struct Slice: Hashable, Identifiable, Sendable {
         var name: String
         var value: Double
-        /// 占整个时段的比例，0 到 1。
+        /// Fraction of the whole period, 0 to 1.
         var fraction: Double
 
         var id: String { name }
     }
 
-    /// 整个时段里按 metric 最大的前 keep 个成员，大的在前。
+    /// The top keep members by metric over the whole period, largest first.
     static func leaders(
         in ledger: RequestLedger, by dimension: Dimension, metric: UsageMetric, keep: Int = keep
     ) -> [UsageShare] {
@@ -35,7 +37,8 @@ nonisolated enum ChartData {
         return Array(sorted.prefix(keep))
     }
 
-    /// 图例上的名字：领先的成员，加上有剩余时的「其他」。顺序就是颜色的顺序。
+    /// Names on the legend: the leading members, plus "Other" when there is a remainder. The order
+    /// is the color order.
     static func names(
         in ledger: RequestLedger, by dimension: Dimension, metric: UsageMetric, keep: Int = keep
     ) -> [String] {
@@ -49,8 +52,9 @@ nonisolated enum ChartData {
         return names
     }
 
-    /// 每个桶、图例上每个名字一段，桶里剩下的量算到「其他」。
-    /// 量为 0 也出段：柱子画不出来无所谓，面积图里每条线每个桶都得有点，不然堆叠会错位。
+    /// One segment per bucket per legend name; the bucket's leftover amount counts toward "Other".
+    /// A segment is emitted even when the amount is 0: a bar that cannot be drawn does no harm, but
+    /// in the area chart every line needs a point in every bucket, or the stacking misaligns.
     static func stacks(
         in ledger: RequestLedger, by dimension: Dimension, metric: UsageMetric, keep: Int = keep
     ) -> [Stack] {
@@ -74,7 +78,8 @@ nonisolated enum ChartData {
         return out
     }
 
-    /// 一个桶里每一段堆上去以后的高度，面积图选中时在这些位置点点。量为 0 的那段没有自己的顶。
+    /// Height of each segment in one bucket once stacked; the area chart puts dots at these
+    /// positions when the bucket is selected. A segment with amount 0 has no top of its own.
     static func tops(of stacks: [Stack], at label: String) -> [(name: String, value: Double)] {
         var height = 0.0
         return stacks.filter { $0.label == label && $0.value > 0 }.map { stack in
@@ -83,7 +88,8 @@ nonisolated enum ChartData {
         }
     }
 
-    /// 环形图的份额：领先成员加「其他」，按整个时段的合计算占比。
+    /// Shares for the donut chart: the leading members plus "Other", with fractions taken against
+    /// the whole period's total.
     static func slices(
         in ledger: RequestLedger, by dimension: Dimension, metric: UsageMetric, keep: Int = keep
     ) -> [Slice] {
@@ -101,8 +107,10 @@ nonisolated enum ChartData {
         return slices
     }
 
-    /// 横轴上标出来的刻度：一屏最多 limit 个，均匀挑，最后一个（最近的桶）一定标出来。
-    /// 图能横向滚动时传 window（一屏几个桶），刻度按一屏的密度挑，而不是按整段。
+    /// Ticks labeled on the horizontal axis: at most limit per screen, picked evenly, and the last
+    /// one (the most recent bucket) is always labeled.
+    /// When the chart scrolls horizontally, pass window (buckets per screen) so ticks are picked at
+    /// the density of one screen rather than of the whole range.
     static func axisLabels(_ labels: [String], window: Int? = nil, limit: Int = 7) -> [String] {
         let perScreen = min(window ?? labels.count, labels.count)
         let stride = max(1, Int((Double(perScreen) / Double(limit)).rounded(.up)))
@@ -112,12 +120,12 @@ nonisolated enum ChartData {
 
     static let palette: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .mint]
 
-    /// 画图用的填充：和 colors 一样的顺序，每种颜色带一点由亮到暗的渐变。
+    /// Fills for drawing: same order as colors, each color with a slight light-to-dark gradient.
     static func styles(for names: [String]) -> [AnyGradient] {
         colors(for: names).map(\.gradient)
     }
 
-    /// 和 names 一一对应的颜色；「其他」永远是灰的。
+    /// Colors matching names one to one; "Other" is always gray.
     static func colors(for names: [String]) -> [Color] {
         var index = 0
         return names.map { name in

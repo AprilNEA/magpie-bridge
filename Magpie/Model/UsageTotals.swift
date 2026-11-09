@@ -1,4 +1,5 @@
-/// 一组调用的合计（usage.Totals）。各端点只保证基础字段，其余缺省为 0。
+/// The totals of a set of calls (usage.Totals). Each endpoint guarantees only the basic fields;
+/// the rest default to 0.
 nonisolated struct UsageTotals: Decodable, Hashable, Sendable {
     var calls = 0
     var errors = 0
@@ -7,28 +8,28 @@ nonisolated struct UsageTotals: Decodable, Hashable, Sendable {
     var cacheRead = 0
     var cacheWrite = 0
     var reasoning = 0
-    /// 美元，按有价格的调用算。
+    /// In US dollars, over the calls that have a price.
     var cost = 0.0
-    /// 有 token 但不知道价格的调用数。
+    /// Calls that have tokens but no known price.
     var unpriced = 0
 
-    /// 网页 /me 显示的 token 数：四类相加。
+    /// The token count the /me web page shows: the four kinds added together.
     var tokens: Int { input + output + cacheRead + cacheWrite }
 
-    /// 发给模型的提示词 tokens：没命中缓存的输入，加上缓存读取和写入。
+    /// Prompt tokens sent to the model: input that missed the cache, plus cache reads and writes.
     var promptTokens: Int { input + cacheRead + cacheWrite }
 
-    /// 提示词 tokens 里从缓存读出来的比例，0 到 1；没有提示词时为 nil。
+    /// The fraction of prompt tokens read from the cache, 0 to 1; nil when there is no prompt.
     var cacheHitRate: Double? {
         promptTokens > 0 ? Double(cacheRead) / Double(promptTokens) : nil
     }
 
-    /// 失败的调用占全部调用的比例；没有调用时为 nil。
+    /// Failed calls as a fraction of all calls; nil when there are no calls.
     var errorRate: Double? {
         calls > 0 ? Double(errors) / Double(calls) : nil
     }
 
-    /// 平均每次调用的费用，按全部调用算；没有调用时为 nil。
+    /// The average cost per call, over all calls; nil when there are no calls.
     var averageCost: Double? {
         calls > 0 ? cost / Double(calls) : nil
     }
@@ -55,7 +56,7 @@ nonisolated struct UsageTotals: Decodable, Hashable, Sendable {
     }
 }
 
-/// tokens 的四类；网页 /me 的 tokens 就是这四项加起来。
+/// The four kinds of tokens; the tokens on the /me web page are these four added together.
 nonisolated enum TokenKind: String, CaseIterable, Identifiable, Sendable {
     case input, output, cacheRead, cacheWrite
 

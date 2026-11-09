@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 一条额度用掉了多少的圆环：绿、橙、红随比例变，用完了整圈红。
+/// Ring showing how much of one limit is used: green, orange, red follow the fraction, and the
+/// whole ring is red once spent.
 struct LimitGauge: View {
     let limit: LimitStatus
 
@@ -9,7 +10,8 @@ struct LimitGauge: View {
             ZStack {
                 Circle()
                     .stroke(Color(.systemFill), style: StrokeStyle(lineWidth: 9, lineCap: .round))
-                // 弧从淡到深，深的一头是用到哪儿了。渐变的角度和 trim 一样从 0 起算，再一起转到顶上。
+                // The arc runs light to dark; the dark end is how far usage has got. The gradient
+                // angle starts at 0 like trim does, then both rotate to the top together.
                 Circle()
                     .trim(from: 0, to: arc)
                     .stroke(
@@ -59,14 +61,14 @@ struct LimitGauge: View {
     private var usedText: String { limit.usedText }
     private var color: Color { limit.usageColor }
 
-    /// 画出来的那段弧：0 也画一点点，超过 1 封顶。
+    /// The drawn arc: 0 still draws a sliver, and anything above 1 is capped.
     private var arc: Double {
         min(max(fraction, 0.001), 1)
     }
 }
 
 extension LimitStatus {
-    /// 绿、橙、红随用掉的比例变；圆环和进度条用同一套。
+    /// Green, orange, red follow the used fraction; the gauge and the progress bar share this.
     var usageColor: Color {
         switch usedFraction {
         case ..<0.6: .green

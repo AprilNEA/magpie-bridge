@@ -1,17 +1,21 @@
 import Foundation
 
-/// 网关把一个时段切成的桶（Ledger.Bucket）：今天按小时，7 天 / 30 天按天，更长按周。
+/// The bucket the gateway cuts a period into (Ledger.Bucket): today by hour, 7 / 30 days by day,
+/// anything longer by week.
 nonisolated enum Bucket: String, Sendable {
     case hour, day, week
 }
 
-/// 时间轴上的一个桶（usage.SeriesPoint）：这段时间的合计，加上按模型、Agent、提供方拆开的份额。
+/// One bucket on the series (usage.SeriesPoint): the totals for that span, plus the shares broken
+/// down by model, Agent, and provider.
 nonisolated struct SeriesPoint: Decodable, Hashable, Identifiable, Sendable {
-    /// 网关在服务器时区里写好的刻度，例如 "Nov 8" 或 "14"；图表直接用它当横轴。
+    /// The tick the gateway writes in the server's time zone, for example "Nov 8" or "14"; the
+    /// chart uses it directly as the x axis.
     var label: String
     var time: Date
     var totals: UsageTotals
-    /// 维度 → 成员 id → 该成员在这个桶里的量；网关只给整个时段 tokens 最多的 24 个成员。
+    /// Dimension → member id → that member's amount in this bucket; the gateway only sends the 24
+    /// members with the most tokens over the whole period.
     var by: [String: [String: SeriesPart]]
 
     var id: String { label }
@@ -33,7 +37,7 @@ nonisolated struct SeriesPoint: Decodable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// 一个成员在一个桶里的量（usage.Part）。
+/// One member's amount in one bucket (usage.Part).
 nonisolated struct SeriesPart: Decodable, Hashable, Sendable {
     var calls = 0
     var tokens = 0
@@ -57,7 +61,8 @@ nonisolated struct SeriesPart: Decodable, Hashable, Sendable {
     }
 }
 
-/// 整个时段里按某个维度汇总的一份（usageapi.Share）：id、给人看的名字和合计。
+/// One share of the whole period summed by a dimension (usageapi.Share): id, display name, and
+/// totals.
 nonisolated struct UsageShare: Decodable, Hashable, Identifiable, Sendable {
     var id: String
     var name: String
@@ -78,7 +83,7 @@ nonisolated struct UsageShare: Decodable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// 把调用拆开看的维度；原始值就是网关 by 里的键。
+/// A dimension to break calls down by; the raw value is the key in the gateway's by field.
 nonisolated enum Dimension: String, CaseIterable, Identifiable, Sendable {
     case model, agent, provider
 
@@ -93,7 +98,7 @@ nonisolated enum Dimension: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// 图表量的是什么。
+/// What the chart measures.
 nonisolated enum UsageMetric: String, CaseIterable, Identifiable, Sendable {
     case tokens, calls, cost
 
@@ -123,8 +128,10 @@ nonisolated enum UsageMetric: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// 比这个还小的量当作没有。tokens 和次数是整数；费用网关四舍五入到小数点后四位，
-    /// 几家加起来和合计能差出几个万分之一，不到千分之一美元的差额是舍入，不是谁的用量。
+    /// Amounts smaller than this count as nothing. Tokens and counts are integers; the gateway
+    /// rounds cost to four decimal places, so a few members added together can differ from the
+    /// totals by a few ten-thousandths; a difference under a thousandth of a dollar is rounding,
+    /// not anyone's usage.
     var resolution: Double {
         switch self {
         case .tokens, .calls: 1
@@ -132,7 +139,7 @@ nonisolated enum UsageMetric: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// 坐标轴和图例上的写法。
+    /// The form used on the axis and in the legend.
     func format(_ value: Double) -> String {
         switch self {
         case .tokens: Format.tokens(Int(value.rounded()))

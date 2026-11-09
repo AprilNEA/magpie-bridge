@@ -4,7 +4,7 @@ import Testing
 
 @testable import Magpie
 
-/// 三个模型、两天：A 最多，B 次之，C 只在第一天出现过一次。
+/// Three models over two days: A has the most, B is next, C appears only once, on the first day.
 private let ledgerJSON = """
     {"period":"7d","bucket":"day","total":0,"rows":[],
      "calls":10,"errors":1,"input":600,"cost":1.0,
@@ -39,7 +39,7 @@ private let ledgerJSON = """
         let ledger = try ledger()
         #expect(
             ChartData.names(in: ledger, by: .model, metric: .tokens, keep: 2) == ["A", "B", "其他"])
-        // 三个都放得下，没有剩余，就没有「其他」。
+        // All three fit, nothing is left over, so there is no "Other".
         #expect(ChartData.names(in: ledger, by: .model, metric: .tokens) == ["A", "B", "C"])
     }
 
@@ -48,7 +48,8 @@ private let ledgerJSON = """
         let nov7 = stacks.filter { $0.label == "Nov 7" }.map { ($0.name, $0.value) }
         #expect(nov7.map(\.0) == ["A", "B", "其他"])
         #expect(nov7.map(\.1) == [200, 50, 50])
-        // 第二天 A 和 B 就是全部，「其他」这一段还在、只是 0：面积图要每条线每个桶都有点。
+        // On the second day A and B are everything; the "Other" segment stays, just at 0: an area
+        // chart needs a point in every bucket for every line.
         let nov8 = stacks.filter { $0.label == "Nov 8" }.map { ($0.name, $0.value) }
         #expect(nov8.map(\.0) == ["A", "B", "其他"])
         #expect(nov8.map(\.1) == [100, 200, 0])
@@ -59,7 +60,7 @@ private let ledgerJSON = """
         let nov7 = ChartData.tops(of: stacks, at: "Nov 7")
         #expect(nov7.map(\.name) == ["A", "B", "其他"])
         #expect(nov7.map(\.value) == [200, 250, 300])
-        // 为 0 的那段没有自己的顶。
+        // The segment at 0 has no top of its own.
         let nov8 = ChartData.tops(of: stacks, at: "Nov 8")
         #expect(nov8.map(\.name) == ["A", "B"])
         #expect(nov8.map(\.value) == [100, 300])
@@ -73,7 +74,8 @@ private let ledgerJSON = """
         #expect(abs(slices[2].fraction - 0.1) < 0.0001)
     }
 
-    /// 费用是网关四舍五入过的：各家加起来比合计少几个万分之一不算「其他」；tokens 少 1 就算。
+    /// The gateway rounds cost: parts summing to a few ten-thousandths under the total is not
+    /// "Other"; tokens one short is.
     @Test func roundingLeftoverIsNotOther() throws {
         let json = """
             {"period":"7d","bucket":"day","calls":10,"input":1000,"cost":1.0,
@@ -114,7 +116,8 @@ private let ledgerJSON = """
         #expect(ChartData.axisLabels(labels) == shown.map(String.init))
     }
 
-    /// 能滚动的图按一屏的桶数挑刻度：30 个桶、一屏 15 个、一屏最多 5 个刻度，就是每 3 个标一个。
+    /// A scrollable chart picks ticks by the buckets per screen: 30 buckets, 15 per screen, at most
+    /// 5 ticks per screen means one label every 3.
     @Test func axisLabelsThinOutByTheVisibleWindow() {
         let labels = (0..<30).map(String.init)
         let shown = ChartData.axisLabels(labels, window: 15, limit: 5)

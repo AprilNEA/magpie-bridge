@@ -1,8 +1,8 @@
 import Foundation
 
-/// 页面上数字和时间的写法，和网页 /me 保持一致。
+/// How numbers and times are written on screen, consistent with the /me web page.
 nonisolated enum Format {
-    /// 1.2万、35K 这样的紧凑写法。
+    /// Compact notation such as 35K, or "1.2 wan" (12 thousand) in a Chinese locale.
     static func tokens(_ count: Int) -> String {
         count.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
     }
@@ -11,12 +11,13 @@ nonisolated enum Format {
         count.formatted()
     }
 
-    /// 100 美元以上不显示分。
+    /// From 100 dollars up, cents are not shown.
     static func usd(_ amount: Double) -> String {
         amount >= 100 ? "$" + Int(amount.rounded()).formatted() : String(format: "$%.2f", amount)
     }
 
-    /// 平均每次调用这种很小的金额：1 美元以上和 usd 一样，1 美分以上三位小数，再小四位。
+    /// Very small amounts such as the average per call: from 1 dollar up same as usd, from 1 cent
+    /// up three decimals, anything smaller four.
     static func unitCost(_ amount: Double) -> String {
         switch amount {
         case 1...: usd(amount)
@@ -33,7 +34,7 @@ nonisolated enum Format {
         ms < 1000 ? "\(ms) ms" : String(format: "%.1f s", Double(ms) / 1000)
     }
 
-    /// 394 B、1.2 KB 这样的字节数。
+    /// Byte counts such as 394 B or 1.2 KB.
     static func bytes(_ count: Int64) -> String {
         count.formatted(.byteCount(style: .file))
     }

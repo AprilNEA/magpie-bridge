@@ -1,6 +1,6 @@
 import Foundation
 
-/// 配置页的目标工具，和网页 /me 的四个标签一致。
+/// Target tools on the setup tab, matching the four tabs of the /me web page.
 nonisolated enum SetupTarget: String, CaseIterable, Identifiable, Sendable {
     case claudeCode
     case codex
@@ -9,7 +9,8 @@ nonisolated enum SetupTarget: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    /// 分段控件四格并排，iPhone 上每格只放得下六七个字母，所以用短名字。
+    /// The segmented control has four cells side by side, and on an iPhone each fits only six or
+    /// seven letters, so the names are short.
     var title: String {
         switch self {
         case .claudeCode: "Claude"
@@ -29,20 +30,20 @@ nonisolated enum SetupTarget: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// 生成和网页 /me 一样的配置片段。
+/// Generates the same setup snippets as the /me web page.
 nonisolated enum SetupSnippet {
     static let keyPlaceholder = "YOUR_GATEWAY_KEY"
     static let modelPlaceholder = "MODEL_ID"
 
     struct Block: Hashable, Identifiable, Sendable {
-        /// 写到哪个文件，或者这一项叫什么。
+        /// Which file to write to, or what this item is called.
         var title: String
         var text: String
 
         var id: String { title }
     }
 
-    /// key 为 nil 时用占位符，这样片段可以放心分享。
+    /// Uses a placeholder when key is nil, so the snippet can be shared safely.
     static func blocks(for target: SetupTarget, baseURL: URL, key: String?, model: String?)
         -> [Block]
     {
@@ -95,7 +96,7 @@ nonisolated enum SetupSnippet {
         }
     }
 
-    /// JSON 字符串字面量，和 JSON.stringify 一样。
+    /// A JSON string literal, same as JSON.stringify.
     static func json(_ text: String) -> String {
         var out = "\""
         for scalar in text.unicodeScalars {
@@ -113,7 +114,7 @@ nonisolated enum SetupSnippet {
         return out + "\""
     }
 
-    /// 单引号包起来的 shell 参数。
+    /// A shell argument wrapped in single quotes.
     static func shell(_ text: String) -> String {
         "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

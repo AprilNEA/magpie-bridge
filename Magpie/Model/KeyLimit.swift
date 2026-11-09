@@ -1,24 +1,27 @@
 import Foundation
 
-/// GET /v1/magpie/limit：密钥受什么限制。
+/// GET /v1/magpie/limit: what restricts the key.
 nonisolated struct KeyLimit: Decodable, Hashable, Sendable {
     var limited: Bool
     var key: String
-    /// budget、models、accounts 中的若干个；没有限制的密钥为空。
+    /// Any of budget, models, and accounts; empty for a key with no restrictions.
     var heldTo: [String]
-    /// 允许的模型，可以是 claude/* 这样的通配。
+    /// The allowed models, which can be wildcards such as claude/*.
     var models: [String]
     var limits: [LimitStatus]
-    /// 这把密钥是在另一把受限的密钥下签发的时候，签发者的额度：所有签发出去的密钥一起算。
+    /// The issuer's limits when this key was issued under another held key: all the keys that
+    /// issuer issued count together.
     var issuerLimits: [LimitStatus]
-    /// 受限的密钥能不能看到账号的配额；能的话 quotaProviders 是能看到哪些提供方的。
+    /// Whether a held key can see the account's quotas; if so, quotaProviders lists which
+    /// providers the key can see.
     var quotas: Bool
     var quotaProviders: [String]
-    /// 能用的 MCP 服务器（github）和工具（github/search_code）。空是全部；只有一个 "-" 是一个都不能用。
+    /// The MCP servers (github) and tools (github/search_code) the key can use. Empty means all;
+    /// just one "-" means none at all.
     var mcp: [String]
     var expires: Date?
 
-    /// 网关用来表示「一个 MCP 服务器都不能用」的那一项（access.NoMCP）。
+    /// The entry the gateway uses to mean "no MCP server at all" (access.NoMCP).
     static let noMCP = "-"
 
     var heldToTitles: [String] {

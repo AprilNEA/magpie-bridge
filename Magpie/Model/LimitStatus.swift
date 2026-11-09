@@ -1,13 +1,13 @@
 import Foundation
 
-/// 密钥的一条额度及其当前窗口的用量（budget.Status）。
+/// One limit on a key and the usage in its current window (budget.Status).
 nonisolated struct LimitStatus: Decodable, Hashable, Identifiable, Sendable {
-    /// day、week、month，或 days、hours 配合 days / hours 的数量。
+    /// day, week, month, or days / hours together with the count in days / hours.
     var period: String
     var days: Int?
     var hours: Int?
     var start: Date
-    /// 窗口何时重置；Go 的零值（公元 1 年）表示没有。
+    /// When the window resets; Go's zero time (year 1 AD) means there is none.
     var reset: Date
     var calls: Int
     var tokens: Int
@@ -16,7 +16,7 @@ nonisolated struct LimitStatus: Decodable, Hashable, Identifiable, Sendable {
     var costLimit: Double?
     var tokensLeft: Int
     var costLeft: Double
-    /// 已用完，到重置前都会被拒。
+    /// Used up; every request is rejected until the reset.
     var spent: Bool
 
     var id: String { "\(period)/\(days ?? 0)/\(hours ?? 0)" }
@@ -36,7 +36,8 @@ nonisolated struct LimitStatus: Decodable, Hashable, Identifiable, Sendable {
         reset > Date(timeIntervalSince1970: 0) ? reset : nil
     }
 
-    /// 用掉的比例：费用额度优先，只限 tokens 的按 tokens 算；用完了算 1，没有上限算 0。
+    /// The fraction used: the cost limit comes first, a tokens-only limit goes by tokens; spent
+    /// counts as 1, no limit counts as 0.
     var usedFraction: Double {
         if spent {
             return 1
@@ -50,7 +51,7 @@ nonisolated struct LimitStatus: Decodable, Hashable, Identifiable, Sendable {
         return 0
     }
 
-    /// 「$1.20 / $2.50」这样的已用 / 上限；没有上限的只写调用次数。
+    /// Used / limit like "$1.20 / $2.50"; with no limit, just the number of calls.
     var usedText: String {
         if let cap = costLimit, cap > 0 {
             return "\(Format.usd(cost)) / \(Format.usd(cap))"
@@ -61,7 +62,7 @@ nonisolated struct LimitStatus: Decodable, Hashable, Identifiable, Sendable {
         return "\(Format.count(calls)) 次"
     }
 
-    /// 还剩多少，按网关算好的数；没有上限时为空。
+    /// How much is left, using the number the gateway computed; nil when there is no limit.
     var leftText: String? {
         if let cap = costLimit, cap > 0 {
             return "剩余 \(Format.usd(costLeft))"

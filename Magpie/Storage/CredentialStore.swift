@@ -1,10 +1,11 @@
 import Foundation
 import Security
 
-/// 网关地址放在 UserDefaults，密钥放在钥匙串，按网关地址区分。
+/// The gateway address lives in UserDefaults and the key in the Keychain, one per gateway address.
 struct CredentialStore {
     static let service = "com.aprilnea.queqiao.gateway-key"
-    /// 最近一次用的网关地址。启动参数 -gatewayAddress 也能给出（UI 测试用）。
+    /// The gateway address used last. The launch argument -gatewayAddress can also provide it
+    /// (for UI tests).
     static let addressKey = "gatewayAddress"
 
     private let items: any KeychainItems
@@ -36,7 +37,7 @@ struct CredentialStore {
         defaults.set(account, forKey: Self.addressKey)
     }
 
-    /// 删掉密钥；地址留着，下次只需再输入密钥。
+    /// Deletes the key; the address stays, so next time only the key needs entering again.
     func forgetKey() throws(KeychainFailure) {
         guard let address else { return }
         try items.delete(account: address)
@@ -53,12 +54,12 @@ nonisolated extension KeychainFailure: LocalizedError {
     }
 }
 
-/// 按账号存取的通用密码项。测试换成内存实现。
+/// Generic password items accessed by account. Tests swap in an in-memory implementation.
 protocol KeychainItems {
     func read(account: String) throws(KeychainFailure) -> Data?
-    /// 有就替换，没有就新建。
+    /// Replaces the item when present, otherwise creates it.
     func write(_ data: Data, account: String) throws(KeychainFailure)
-    /// 删除不存在的项也算成功。
+    /// Deleting an item that does not exist also counts as success.
     func delete(account: String) throws(KeychainFailure)
 }
 
@@ -89,7 +90,8 @@ struct Keychain: KeychainItems {
         }
         var item = query
         item[kSecValueData] = data
-        // 只在解锁后、只在这台设备上可读：密钥不进 iCloud 钥匙串，换机要重新输入。
+        // Readable only when unlocked and only on this device: the key stays out of iCloud Keychain
+        // and must be entered again on a new device.
         item[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let added = SecItemAdd(item as CFDictionary, nil)
         guard added == errSecSuccess else {

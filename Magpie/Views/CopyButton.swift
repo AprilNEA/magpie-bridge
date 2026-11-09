@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// 把一段文字放进剪贴板，按完一秒半里显示「已复制」。
+/// Puts text on the pasteboard and shows "Copied" for a second and a half after the tap.
 struct CopyButton: View {
     let text: String
 
@@ -16,7 +16,7 @@ struct CopyButton: View {
                 copied = false
             }
         }
-        // 放在列表行里时只有按钮本身响应点击，不是整行。
+        // Inside a list row only the button itself responds to taps, not the whole row.
         .buttonStyle(.borderless)
     }
 }

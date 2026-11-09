@@ -1,28 +1,32 @@
 import Charts
 import SwiftUI
 
-/// 这把密钥自己的调用记录，最新的在前，往下翻自动加载下一页。
-/// 可以只看失败的、按模型 / Agent / 提供方筛，或者搜文本；筛选在网关上做，合计和小图跟着变。
+/// This key's own call records, newest first, loading the next page automatically as you scroll.
+/// Can show only failures, filter by model, Agent, or provider, or search text; the gateway does
+/// the filtering, and the totals and the sparkline follow.
 struct RequestsView: View {
     let session: Session
 
     @State private var period = UsagePeriod.week
     @State private var filter = RequestFilter()
-    /// 搜索框里的字；停下来一会儿才写进 filter.query 去问网关。
+    /// Text in the search field; it goes into filter.query to ask the gateway only after typing
+    /// pauses for a moment.
     @State private var searchText = ""
-    /// 第一页：合计、时间轴、份额和筛选用的 Agent / 提供方都在这里，翻页只接 rows。
+    /// The first page: totals, series, shares, and the Agents and providers for filtering all live
+    /// here; paging only appends rows.
     @State private var ledger: RequestLedger?
     @State private var rows: [RequestRow] = []
     @State private var loading = false
     @State private var failure: String?
 
-    /// 时段和筛选一起决定要加载什么，变了就重新拿第一页。
+    /// Period and filter together decide what to load; a change refetches the first page.
     private struct LoadKey: Hashable {
         var period: UsagePeriod
         var filter: RequestFilter
     }
 
-    /// 概览页点一个常用模型时带着筛选和时段进来；请求标签页用默认值。
+    /// The overview tab passes a filter and period when a top model is tapped; the requests tab
+    /// uses the defaults.
     init(session: Session, filter: RequestFilter = RequestFilter(), period: UsagePeriod = .week) {
         self.session = session
         _filter = State(initialValue: filter)
@@ -147,8 +151,9 @@ struct RequestsView: View {
         }
     }
 
-    /// 下拉里的模型：这个时段用过的。网关算 by.model 时不带模型筛选，所以选了一个，其他的还在。
-    /// 刚换了时段、选中的那个不在里面时也留着它，免得菜单里没有勾。
+    /// Models in the dropdown: the ones used in this period. The gateway computes by.model without
+    /// the model filter, so after picking one the others stay. When the period just changed and
+    /// the selected model is not in the list, keep it as well, so the menu still shows a checkmark.
     private var modelOptions: [String] {
         var ids = (ledger?.shares(by: .model) ?? []).map(\.id).filter { !$0.isEmpty }
         if !filter.model.isEmpty, !ids.contains(filter.model) {
@@ -196,7 +201,8 @@ struct RequestsView: View {
         searchText = ""
     }
 
-    /// 输入停下 350 毫秒再去问网关，免得每敲一个字就请求一次；按回车不用等。
+    /// Asks the gateway 350 ms after typing stops, so not every keystroke sends a request;
+    /// pressing return skips the wait.
     private func commitSearch() async {
         guard searchText != filter.query else { return }
         do {
@@ -238,7 +244,7 @@ struct RequestsView: View {
     }
 }
 
-/// 设了的筛选条件，一条一个胶囊，点一下去掉。
+/// The active filters, one capsule each; tapping one removes it.
 private struct FilterChips: View {
     let filter: RequestFilter
     let ledger: RequestLedger?
@@ -270,7 +276,7 @@ private struct FilterChips: View {
         .scrollIndicators(.hidden)
     }
 
-    /// Agent 和提供方按名字显示，账本里没有它们时才落到 id。
+    /// Agents and providers show by name, falling back to the id only when the ledger lacks them.
     private func title(of field: RequestFilter.Field) -> String {
         switch field {
         case .failed: "只看失败"
@@ -284,7 +290,7 @@ private struct FilterChips: View {
     }
 }
 
-/// 列表顶上的小图：每个桶成功和失败各多少次。
+/// The sparkline above the list: how many calls succeeded and failed in each bucket.
 private struct CallsSparkline: View {
     let series: [SeriesPoint]
 
@@ -394,7 +400,8 @@ struct RequestRowView: View {
         .padding(.vertical, 2)
     }
 
-    /// 右上角的标记；成功的不标。失败后被网关重试的那一次 Agent 没看到错误，所以不标红。
+    /// The badge in the top-right corner; successes get none. The Agent never saw the error of a
+    /// failed call that the gateway retried, so that one is not marked red.
     private var outcome: (text: String, alarming: Bool)? {
         let code = row.status > 0 ? " \(row.status)" : ""
         if row.handedOn {
@@ -413,7 +420,8 @@ struct RequestRowView: View {
     }
 }
 
-/// 一行里的一个 token 数：箭头加数字。不用 Label——它在这行的 HStack 里会把数字挤成竖排。
+/// One token count in a row: an arrow plus a number. Not a Label, which inside this row's HStack
+/// would squeeze the digits into a vertical column.
 private struct TokenStat: View {
     let value: Int
     let icon: String
@@ -500,7 +508,7 @@ struct RequestDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// 真正连了提供方的调用才有：主机和来回的字节数。
+    /// Only calls that actually reached a provider have these: the host and the bytes each way.
     private var hasUpstream: Bool {
         !(row.host ?? "").isEmpty || row.upBytes > 0 || row.downBytes > 0
     }

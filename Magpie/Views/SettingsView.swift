@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 网关、密钥受到的限制（/v1/magpie/limit 的全部内容）、忘记密钥、关于。
+/// The gateway, the key's restrictions (all of /v1/magpie/limit), forget key, and about.
 struct SettingsView: View {
     let session: Session
 
@@ -129,7 +129,8 @@ struct SettingsView: View {
         }
     }
 
-    /// 一行标题，下面每个名字各占一行等宽小字（模型通配、MCP 条目），免得长名字从中间折行。
+    /// A title line, then each name on its own line in small monospaced text (model wildcards,
+    /// MCP entries), so a long name does not break in the middle.
     private func list(_ title: String, _ items: [String]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
@@ -146,7 +147,7 @@ struct SettingsView: View {
         }
     }
 
-    /// 受限的密钥能不能看到账号的配额，能的话是哪些提供方的。
+    /// Whether the held key can see the account's quotas and, if so, which providers' quotas.
     private func quotasText(_ limit: KeyLimit) -> String {
         guard limit.quotas else { return "不可见" }
         return limit.quotaProviders.isEmpty ? "可见" : limit.quotaProviders.joined(separator: "、")

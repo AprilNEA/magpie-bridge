@@ -23,9 +23,9 @@ build:
 test:
 	$(XCODEBUILD_UNSIGNED) -destination '$(DESTINATION)' -skip-testing:MagpieUITests test
 
-# 需要一个能连上的网关：MAGPIE_TEST_GATEWAY_URL 和 MAGPIE_TEST_GATEWAY_KEY，
-# 可选 MAGPIE_SCREENSHOT_DIR 保存每个页面的截图。
-# 保留模拟器的 ad-hoc 签名：没有 entitlements 时钥匙串会报 errSecMissingEntitlement。
+# Needs a reachable gateway: MAGPIE_TEST_GATEWAY_URL and MAGPIE_TEST_GATEWAY_KEY,
+# and optionally MAGPIE_SCREENSHOT_DIR to save a screenshot of every pane.
+# Keeps the simulator's ad-hoc signing: without entitlements the Keychain reports errSecMissingEntitlement.
 ui-test:
 	TEST_RUNNER_MAGPIE_TEST_GATEWAY_URL='$(MAGPIE_TEST_GATEWAY_URL)' \
 	TEST_RUNNER_MAGPIE_TEST_GATEWAY_KEY='$(MAGPIE_TEST_GATEWAY_KEY)' \
@@ -34,6 +34,6 @@ ui-test:
 
 check: lint build test
 
-# 不连真网关也能看页面：本地起一个带 90 天假数据的演示网关，密钥是 sk-magpie-key-demo。
+# View the panes without a real gateway: starts a local demo gateway with 90 days of fake data, key sk-magpie-key-demo.
 demo-gateway:
 	python3 scripts/demo_gateway.py --port 3427

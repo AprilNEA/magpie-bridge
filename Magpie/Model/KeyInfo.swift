@@ -1,12 +1,12 @@
-/// GET /v1/magpie/me：一把网关密钥自己能看到的一切。
+/// GET /v1/magpie/me: everything a gateway key can see about itself.
 nonisolated struct KeyInfo: Decodable, Hashable, Sendable {
     var name: String
-    /// 只能看用量、不能调用模型的密钥；此时 models 为空。
+    /// A key that can only view usage and cannot call models; models is empty then.
     var readOnly: Bool
     var limits: [LimitStatus]
-    /// 按 UsagePeriod 的原始值（today、7d、30d）分组。
+    /// Grouped by the raw value of UsagePeriod (today, 7d, 30d).
     var usage: [String: UsageTotals]
-    /// 最近 30 天调用最多的模型，最多 8 个。
+    /// The most-called models over the last 30 days, at most 8.
     var topModels: [TopModel]
     var models: [ModelEntry]
     var version: String
@@ -15,12 +15,14 @@ nonisolated struct KeyInfo: Decodable, Hashable, Sendable {
         usage[period.rawValue] ?? UsageTotals()
     }
 
-    /// 配置页默认选中的模型：最常用且这把密钥仍可用的那个，否则列表的第一个。
+    /// The model the setup page selects by default: the top model this key can still use,
+    /// otherwise the first one in the list.
     var suggestedModel: ModelEntry? {
         topModels.lazy.compactMap(entry(matching:)).first ?? models.first
     }
 
-    /// models 里对应这个常用模型的那项。topModels 里是供应商自己的模型名，可能没有 provider/ 前缀。
+    /// The models entry for this top model. topModels holds the providers' own model names, which
+    /// may lack the provider/ prefix.
     func entry(matching top: TopModel) -> ModelEntry? {
         models.first { $0.id == top.id || $0.id.hasSuffix("/" + top.id) }
     }
@@ -41,7 +43,7 @@ nonisolated struct KeyInfo: Decodable, Hashable, Sendable {
     }
 }
 
-/// topModels 的一项：模型 id 加上它的合计，网关把两者平铺在一个对象里。
+/// One topModels item: the model id plus its totals; the gateway flattens both into one object.
 nonisolated struct TopModel: Decodable, Hashable, Identifiable, Sendable {
     var id: String
     var totals: UsageTotals
@@ -56,7 +58,7 @@ nonisolated struct TopModel: Decodable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// 密钥可以调用的模型：provider/model 形式的 id 和给人看的名字。
+/// A model the key can call: an id in provider/model form and a display name.
 nonisolated struct ModelEntry: Decodable, Hashable, Identifiable, Sendable {
     var id: String
     var label: String

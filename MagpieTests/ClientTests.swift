@@ -31,7 +31,8 @@ import Testing
         #expect(query == ["period": "7d", "offset": "100", "limit": "50"])
     }
 
-    /// 筛选条件只在设了的时候才上查询串，搜索词两头的空白不算；没设的不带，网关才按默认处理。
+    /// Filters go into the query string only when set, and whitespace around the search term does
+    /// not count; unset filters are left out so the gateway applies its defaults.
     @Test func requestsPageCarriesOnlyTheFiltersSet() async throws {
         let transport = try FakeTransport(.init(200, fixture("requests")))
         let client = MagpieClient(baseURL: base, key: "k", transport: transport)

@@ -1,4 +1,4 @@
-/// 网关统计用量的时间窗口（usage.Period）。
+/// The time window the gateway tallies usage over (usage.Period).
 nonisolated enum UsagePeriod: String, CaseIterable, Identifiable, Sendable {
     case today
     case week = "7d"

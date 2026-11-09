@@ -1,10 +1,12 @@
 import Charts
 import SwiftUI
 
-/// 一个时段的用量按桶堆起来，画成柱子或平滑的面积：点一个桶，看那个桶里各家的量；再点一下取消。
-/// 桶多到一屏放不下（30 天、全部）就能横向滚动，一开始停在最近的桶。
+/// One period's usage stacked by bucket, drawn as bars or as a smooth area: tap a bucket to see
+/// each member's amount in that bucket; tap again to cancel.
+/// When the buckets do not fit on one screen (30 days, all), the chart scrolls horizontally and
+/// starts at the most recent bucket.
 struct TrendChart: View {
-    /// 同一份堆叠数据画成柱子还是面积。
+    /// Whether the same stacked data is drawn as bars or as an area.
     enum Style: String, CaseIterable, Identifiable {
         case bars, area
 
@@ -32,9 +34,11 @@ struct TrendChart: View {
 
     @State private var selectedLabel: String?
 
-    /// 能滚动时一屏放几个桶。小时桶（今天）24 根放得下，不滚。
-    /// 分类轴一屏实际只露出 window - 1 根、最左边那根贴着边；刻度是从最后一根往前每 3 根标一个，
-    /// 取 15 时贴边那根正好轮不到标，不然它的标签会被切掉一半。
+    /// Buckets per screen when the chart scrolls. Hour buckets (today) fit all 24 bars and do not
+    /// scroll.
+    /// A category axis actually reveals only window - 1 bars per screen, with the leftmost bar
+    /// flush against the edge; ticks are labeled every 3 bars counting back from the last one, and
+    /// with 15 the flush bar is exactly the one skipped, otherwise its label would be half cut off.
     static let window = 15
 
     var body: some View {
@@ -46,7 +50,7 @@ struct TrendChart: View {
         let shownLabels = Set(
             ChartData.axisLabels(
                 labels, window: scrolls ? Self.window : nil, limit: scrolls ? 5 : 7))
-        // 换了时段以后旧的选择可能对不上任何桶，那就当没选。
+        // After a period change the old selection may match no bucket; treat that as no selection.
         let selectedPoint = selectedPoint
         VStack(alignment: .leading, spacing: 8) {
             if stacks.isEmpty {
@@ -80,7 +84,8 @@ struct TrendChart: View {
                         RuleMark(x: .value("时间", point.label))
                             .foregroundStyle(.secondary.opacity(0.4))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                        // 面积图压不暗别的桶，改成在选中的桶上每一层的顶点一个点。
+                        // The area chart cannot dim the other buckets, so instead each layer in the
+                        // selected bucket gets a dot at its top.
                         if style == .area {
                             ForEach(ChartData.tops(of: stacks, at: point.label), id: \.name) {
                                 top in
@@ -101,8 +106,10 @@ struct TrendChart: View {
                 .chartForegroundStyleScale(domain: names, range: ChartData.styles(for: names))
                 .chartXScale(domain: labels)
                 .modifier(ScrollsToNewest(labels: labels, window: scrolls ? Self.window : nil))
-                // 分类轴上 AxisMarks(values:) 不会少画刻度，只能每个桶都来一遍、挑着写字。
-                // 能滚动时最后一个标签居中会有一半被视口切掉，改成右对齐到刻度上。
+                // On a category axis AxisMarks(values:) does not draw fewer ticks, so the only way
+                // is to visit every bucket and write labels selectively.
+                // When scrolling, a centered last label would be half clipped by the viewport, so
+                // it is right-aligned to the tick instead.
                 .chartXAxis {
                     AxisMarks { value in
                         if let label = value.as(String.self), shownLabels.contains(label) {
@@ -114,13 +121,19 @@ struct TrendChart: View {
                         }
                     }
                 }
-                // 系统自带的选择手势要按住才出、松手就没，在滚动页里不好用；换成点一下选、再点取消。
-                // 明细卡片不用 annotation：它会浮到图外面被列表裁掉。放在图内、选中那根柱子对面的上角。
+                // The system selection gesture only shows while pressing and vanishes on release,
+                // which works poorly in a scrolling page; replaced with tap to select, tap again
+                // to cancel.
+                // The detail card does not use annotation: it would float outside the chart and be
+                // clipped by the list. It sits inside the chart, in the top corner opposite the
+                // selected bar.
                 .chartOverlay { proxy in
                     GeometryReader { geometry in
                         let bounds = CGRect(origin: .zero, size: geometry.size)
                         let plot = proxy.plotFrame.map { geometry[$0] } ?? bounds
-                        // 图能滚动时绘图区比图宽、左边一截在屏幕外；卡片只能放在看得见的那段里。
+                        // When the chart scrolls, the plot area is wider than the chart and a
+                        // stretch on the left is off screen; the card can only go in the visible
+                        // part.
                         let visible = plot.intersection(bounds)
                         Rectangle()
                             .fill(.clear)
@@ -175,17 +188,21 @@ struct TrendChart: View {
     }
 }
 
-/// 桶多到一屏放不下就横向滚动，一开始停在最近的一屏。
-/// 初始位置只在图第一次出现时生效，所以桶一变（换了时段）就按 labels 重建一张图。
+/// Scrolls horizontally when the buckets do not fit on one screen, starting at the most recent
+/// screen.
+/// The initial position only takes effect when the chart first appears, so whenever the buckets
+/// change (period change) the chart is rebuilt keyed by labels.
 private struct ScrollsToNewest: ViewModifier {
     let labels: [String]
-    /// 一屏放几个桶；nil 就不滚。
+    /// Buckets per screen; nil means no scrolling.
     let window: Int?
 
     func body(content: Content) -> some View {
         if let window, labels.count > window {
-            // 初始位置是「哪个桶贴着左边」。让最后一个桶贴左边，滚动会卡在最右端，一屏正好是最近的那些桶；
-            // 要是按 count - window 算，分类轴一屏实际放不满 window 个，最后一根会被切掉。
+            // The initial position is "which bucket sits flush left". Putting the last bucket flush
+            // left pins the scroll at the far right, so one screen is exactly the most recent
+            // buckets; computing count - window instead would clip the last bar, because a category
+            // axis does not actually fit window bars on one screen.
             content
                 .chartScrollableAxes(.horizontal)
                 .chartXVisibleDomain(length: window)
@@ -197,12 +214,14 @@ private struct ScrollsToNewest: ViewModifier {
     }
 }
 
-/// 选中一根柱子时浮在上面的小卡片：这个桶的合计和前几名。
+/// Small card floating over the chart when a bar is selected: this bucket's total and its top few
+/// members.
 private struct SelectionCard: View {
     let point: SeriesPoint
     let dimension: Dimension
     let metric: UsageMetric
-    /// 整个时段领先的成员，桶里按它们的 id 找量，按它们的名字显示。
+    /// The leading members over the whole period; the bucket's amounts are looked up by their id
+    /// and shown under their name.
     let leaders: [UsageShare]
     let names: [String]
 
@@ -235,7 +254,7 @@ private struct SelectionCard: View {
         }
         .padding(8)
         .frame(minWidth: 140, maxWidth: 220, alignment: .leading)
-        // 按内容定宽，别被外面给的整块绘图区撑满。
+        // Size the width to the content instead of filling the whole plot area given from outside.
         .fixedSize(horizontal: true, vertical: false)
         .background(
             Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10)

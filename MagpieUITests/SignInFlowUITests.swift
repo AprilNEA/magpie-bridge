@@ -1,9 +1,10 @@
 import XCTest
 
-/// 对着一个网关（真的，或 scripts/demo_gateway.py）走一遍：错密钥报错、对密钥进入四个页面、
-/// 切图表的时间范围和维度、把请求筛成只看失败、忘记密钥回到输入页。
-/// 需要 MAGPIE_TEST_GATEWAY_URL 和 MAGPIE_TEST_GATEWAY_KEY；
-/// 给了 MAGPIE_SCREENSHOT_DIR 就把每个页面的截图存进去。
+/// Walks through the app against a gateway (a real one, or scripts/demo_gateway.py): a wrong key
+/// shows an error, the right key enters the four panes, the chart switches time range and
+/// dimension, requests are filtered to failed only, and forgetting the key returns to the input
+/// page. Needs MAGPIE_TEST_GATEWAY_URL and MAGPIE_TEST_GATEWAY_KEY; when MAGPIE_SCREENSHOT_DIR is
+/// given, a screenshot of every pane is saved there.
 final class SignInFlowUITests: XCTestCase {
     private let env = ProcessInfo.processInfo.environment
 
@@ -28,7 +29,8 @@ final class SignInFlowUITests: XCTestCase {
         keyField.typeText("sk-magpie-key-wrong")
         app.buttons["signin.continue"].tap()
         XCTAssertTrue(app.staticTexts["signin.error"].waitForExistence(timeout: 20))
-        // 输错了要能改，输入框里的内容（安全输入显示为圆点）不能被清掉。
+        // A wrong entry must be editable; the field's content (secure entry shows dots) must not be
+        // cleared.
         let kept = keyField.value as? String
         XCTAssertTrue(kept?.hasPrefix("•") == true, "输入框里剩下的是 \(kept ?? "nil")")
         shot(app, "signin-error")
@@ -43,7 +45,8 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["趋势"].exists)
         shot(app, "overview")
 
-        // 用量的三个时段能点：点 7 天，下面换成它的四类 token 横条和缓存命中、失败率、平均每次。
+        // The three usage periods are tappable: tapping 7 days switches the section below to its
+        // four-kind token bar plus cache hits, failure rate, and average per call.
         let weekCell = element(app, "overview.usage.7d")
         XCTAssertTrue(weekCell.waitForExistence(timeout: 5), app.debugDescription)
         weekCell.tap()
@@ -54,7 +57,8 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["缓存命中"].exists, app.debugDescription)
         shot(app, "overview-usage-7d")
 
-        // 趋势图整个在标签栏底下，列表还没把它画出来，先滚上来；然后点一根柱子，上面浮出那个时间段的明细。
+        // The trend chart sits entirely below the tab bar and the list has not drawn it yet, so
+        // scroll up first; then tap a bar and the detail for that period floats up above it.
         scroll(app, by: 0.5)
         let trend = element(app, "overview.trend")
         let trendShown = trend.waitForExistence(timeout: 20)
@@ -66,12 +70,13 @@ final class SignInFlowUITests: XCTestCase {
             XCTAssertTrue(selection.waitForExistence(timeout: 5), app.debugDescription)
             XCTAssertTrue(app.frame.contains(selection.frame), "明细卡片跑到屏幕外了：\(selection.frame)")
             shot(app, "overview-selected")
-            // 再点一下取消（点到柱子或点到卡片都行），后面的截图不要带着压暗的柱子。
+            // Tap again to deselect (hitting the bar or the card both work) so later screenshots
+            // do not carry a dimmed bar.
             bar.tap()
             XCTAssertTrue(waitUntilGone(selection), app.debugDescription)
         }
 
-        // 换时间范围，趋势图和下面的汇总要跟着换。
+        // Changing the time range must update the trend chart and the summary below it.
         app.buttons["30 天"].firstMatch.tap()
         let summary = app.staticTexts["overview.summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 20), app.debugDescription)
@@ -80,7 +85,8 @@ final class SignInFlowUITests: XCTestCase {
         }
         shot(app, "overview-30d")
 
-        // 30 天的图能横向滚动，停在最近的桶；滚动的图上点一根也要能选中、明细卡片要对得上。
+        // The 30-day chart scrolls horizontally and rests on the latest bucket; tapping a bar on
+        // the scrolled chart must also select it, and the detail card must match.
         if trendShown {
             let bar = trend.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.45))
             bar.tap()
@@ -92,7 +98,8 @@ final class SignInFlowUITests: XCTestCase {
             XCTAssertTrue(waitUntilGone(selection), app.debugDescription)
         }
 
-        // 同一份数据切成面积图，点一下也要能选中；看完切回柱子。
+        // Switch the same data to an area chart; a tap must select there too. Switch back to bars
+        // when done.
         let area = app.buttons["面积图"].firstMatch
         XCTAssertTrue(area.waitForExistence(timeout: 5), app.debugDescription)
         if area.exists, trendShown {
@@ -109,7 +116,7 @@ final class SignInFlowUITests: XCTestCase {
             app.buttons["柱状图"].firstMatch.tap()
         }
 
-        // 换指标：费用。
+        // Switch the metric to cost.
         let metric = element(app, "overview.metric")
         XCTAssertTrue(metric.waitForExistence(timeout: 5), app.debugDescription)
         if metric.exists {
@@ -129,7 +136,7 @@ final class SignInFlowUITests: XCTestCase {
         app.buttons["Agent"].firstMatch.tap()
         sleep(1)
         if share.exists {
-            // 点环上的一块，中间换成它的名字和占比。
+            // Tap a segment of the ring; the center switches to its name and share.
             share.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
             XCTAssertTrue(
                 element(app, "overview.share.selected").waitForExistence(timeout: 5),
@@ -137,13 +144,15 @@ final class SignInFlowUITests: XCTestCase {
         }
         shot(app, "overview-agents")
 
-        // 最底下是网页 /me 的「最近 30 天最常用」，和上面选的时段无关，列出的模型要能看见。
+        // At the very bottom is the web /me "most used in the last 30 days", independent of the
+        // period chosen above; the listed models must be visible.
         scroll(app, by: 0.5)
         let top = element(app, "overview.top")
         XCTAssertTrue(top.waitForExistence(timeout: 10), app.debugDescription)
         shot(app, "overview-top")
 
-        // 点一个常用模型，进到按它筛过的 30 天请求：顶上一个模型胶囊，列表里的行都是它。
+        // Tap a frequently used model to enter the 30-day requests filtered by it: a model chip at
+        // the top, and every row in the list is that model.
         tapRow(top)
         let modelChip = app.buttons["requests.chip.model"]
         XCTAssertTrue(modelChip.waitForExistence(timeout: 20), app.debugDescription)
@@ -169,8 +178,10 @@ final class SignInFlowUITests: XCTestCase {
         shot(app, "request-detail")
         app.navigationBars.buttons.firstMatch.tap()
 
-        // 只看失败：从筛选菜单勾上，汇总前面多出「筛选后」，顶上出现一个胶囊；
-        // 失败那条的详情里有错误类型（被网关拒绝的没有，状态写「网关拒绝」）。点胶囊取消筛选。
+        // Failed only: check it in the filter menu, the summary gains a "filtered" prefix, and a
+        // chip appears at the top; the failed row's detail shows an error type (a row rejected by
+        // the gateway has none, and its status reads "rejected by the gateway"). Tapping the chip
+        // clears the filter.
         let requestsSummary = app.staticTexts["requests.summary"]
         let unfiltered = requestsSummary.label
         app.buttons["requests.filter"].tap()
@@ -189,8 +200,9 @@ final class SignInFlowUITests: XCTestCase {
         shot(app, "requests-failed")
         tapRow(failedRow)
         XCTAssertTrue(app.navigationBars["请求详情"].waitForExistence(timeout: 10))
-        // 最近一次失败要么是提供方回的错误（有错误类型），要么是网关自己拒绝的；
-        // 状态那行读出来是「状态、网关拒绝 404」，所以按包含找。
+        // The latest failure is either an error returned by the provider (with an error type) or a
+        // request the gateway itself rejected; the status row reads as "status, rejected by the
+        // gateway 404", so match by containment.
         let rejected = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "网关拒绝")
         ).firstMatch
@@ -203,7 +215,7 @@ final class SignInFlowUITests: XCTestCase {
 
         app.tabBars.buttons["配置"].tap()
         XCTAssertTrue(app.staticTexts["~/.claude/settings.json"].waitForExistence(timeout: 10))
-        // 模型那行写着选中模型的 id，默认是最常用的那个。
+        // The model row shows the selected model's id, which defaults to the most used one.
         let chosen = app.staticTexts["setup.model"]
         XCTAssertTrue(chosen.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertNotEqual(chosen.label, "未选择")
@@ -217,7 +229,8 @@ final class SignInFlowUITests: XCTestCase {
         shot(app, "models")
         app.navigationBars.buttons.firstMatch.tap()
 
-        // 设置页：/limit 的每条额度一行进度条，再往下是签发者的额度、忘记密钥和关于。
+        // Settings pane: one progress bar row per limit from /limit, then further down the issuer's
+        // limits, forget key, and about.
         app.tabBars.buttons["设置"].tap()
         XCTAssertTrue(app.staticTexts["受限于"].waitForExistence(timeout: 10))
         XCTAssertTrue(element(app, "settings.limit").waitForExistence(timeout: 10))
@@ -232,8 +245,9 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(app.secureTextFields["signin.key"].waitForExistence(timeout: 10))
     }
 
-    /// 往上滚到能点到这个元素为止。List 只给滚进屏幕的行建元素，所以页面比屏幕长时，
-    /// 底下的按钮在滚出来之前连 exists 都是 false，不能先等它存在。
+    /// Scrolls up until the element is hittable. List creates elements only for rows scrolled on
+    /// screen, so when the page is longer than the screen, even exists is false for the button at
+    /// the bottom until it scrolls into view; waiting for it to exist first does not work.
     @MainActor
     private func reveal(_ app: XCUIApplication, _ element: XCUIElement) {
         for _ in 0..<4 where !element.isHittable {
@@ -242,7 +256,7 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(element.isHittable, app.debugDescription)
     }
 
-    /// 图表这类不是按钮也不是文字的东西，按 accessibilityIdentifier 找。
+    /// Finds things like charts that are neither buttons nor text by accessibilityIdentifier.
     @MainActor
     private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
@@ -255,7 +269,8 @@ final class SignInFlowUITests: XCTestCase {
         return XCTWaiter().wait(for: [gone], timeout: timeout) == .completed
     }
 
-    /// 沿着左边的留白往上拖，拖多少滚多少；不从图表上起手，免得被它的选择手势接走。
+    /// Drags up along the left margin, scrolling as far as the drag; the drag does not start on
+    /// the chart, so its selection gesture cannot take the touch over.
     @MainActor
     private func scroll(_ app: XCUIApplication, by fraction: CGFloat) {
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.85))
@@ -264,14 +279,16 @@ final class SignInFlowUITests: XCTestCase {
             forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
     }
 
-    /// List 里 NavigationLink 的内容在 iOS 26 上算不出命中点（{-1, -1}），直接 tap() 会被吞掉；
-    /// 按元素的几何中心坐标点能绕过命中检查。
+    /// On iOS 26 the content of a NavigationLink in a List yields no hit point ({-1, -1}), so a
+    /// plain tap() is swallowed; tapping the coordinate at the element's geometric center bypasses
+    /// the hit check.
     @MainActor
     private func tapRow(_ element: XCUIElement) {
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
-    /// 上一次运行留下的密钥还在钥匙串里时，先从设置页忘记它。
+    /// When a key left by the previous run is still in the Keychain, forgets it from the settings
+    /// pane first.
     @MainActor
     private func forgetKeyIfSignedIn(_ app: XCUIApplication) {
         let settings = app.tabBars.buttons["设置"]

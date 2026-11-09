@@ -1,6 +1,6 @@
 import Foundation
 
-/// 发请求的东西：App 用 URLSession，测试用假的。
+/// Whatever sends requests: the app uses URLSession, tests use a fake.
 nonisolated protocol Transport: Sendable {
     func send(_ request: URLRequest) async throws -> (Data, URLResponse)
 }
@@ -11,13 +11,13 @@ nonisolated extension URLSession: Transport {
     }
 }
 
-/// 网关拒绝或没有回答的原因。文案和网页 /me 的一致。
+/// Why the gateway rejected the request or did not answer. The wording matches the web /me page.
 nonisolated enum MagpieError: Error, Equatable, Sendable {
-    /// 401：不是这个网关启用中的密钥。
+    /// 401: not an enabled key on this gateway.
     case invalidKey
-    /// 403 而且不是 gateway_key_held：网关没有开放给远程调用。
+    /// 403 without gateway_key_held: the gateway is not open to remote calls.
     case notShared
-    /// 403 gateway_key_held：受限密钥不能看这个端点。
+    /// 403 gateway_key_held: a held key may not see this endpoint.
     case held(String)
     /// 429
     case tooManyAttempts
@@ -41,7 +41,7 @@ nonisolated extension MagpieError: LocalizedError {
     }
 }
 
-/// 网关的错误体：{"error":{"message","type","code","param"}}。
+/// The gateway's error body: {"error":{"message","type","code","param"}}.
 nonisolated struct APIErrorBody: Decodable, Sendable {
     struct Detail: Decodable, Sendable {
         var message: String?
@@ -52,7 +52,7 @@ nonisolated struct APIErrorBody: Decodable, Sendable {
     var error: Detail
 }
 
-/// 用一把网关密钥调用 /v1/magpie/* 这些密钥自己能看的端点。
+/// Calls /v1/magpie/*, the endpoints a key can see for itself, with one gateway key.
 nonisolated struct MagpieClient: Sendable {
     static let heldCode = "gateway_key_held"
 
@@ -74,8 +74,9 @@ nonisolated struct MagpieClient: Sendable {
         try await get("v1/magpie/limit")
     }
 
-    /// 一页请求记录，最新的在前；limit 最大 500。合计、时间轴和份额是整个时段筛选后的，每页都带。
-    /// 天和小时按网关所在机器的时区切：这条路由不认 ?tz=。
+    /// One page of request records, newest first; limit is at most 500. The totals, series, and
+    /// shares cover the whole filtered period and come with every page. Days and hours split by
+    /// the gateway machine's time zone: this route does not accept ?tz=.
     func requests(
         period: UsagePeriod, filter: RequestFilter = RequestFilter(), offset: Int = 0,
         limit: Int = 100
@@ -152,14 +153,14 @@ nonisolated enum MagpieJSON {
     }
 }
 
-/// Go 用 RFC3339Nano 写时间：小数位 0 到 9 位，零值是公元 1 年。
+/// Go writes times as RFC3339Nano: 0 to 9 fractional digits, and the zero value is year 1 AD.
 nonisolated enum RFC3339 {
     static func date(from text: String) -> Date? {
         var text = text
         if let dot = text.firstIndex(of: "."),
             let end = text[dot...].firstIndex(where: { $0 == "Z" || $0 == "+" || $0 == "-" })
         {
-            // ISO8601DateFormatter 只认恰好三位小数。
+            // ISO8601DateFormatter only accepts exactly three fractional digits.
             let digits = text[text.index(after: dot)..<end].prefix(3)
             let padded = digits + String(repeating: "0", count: 3 - digits.count)
             text.replaceSubrange(dot..<end, with: digits.isEmpty ? "" : "." + padded)

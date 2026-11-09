@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 网页 /me 的上半部分加上图表：额度圆环、用量数字、按时间的趋势、按模型 / Agent / 提供方的构成。
+/// The top half of the web /me page plus charts: limit gauges, usage numbers, the trend over time,
+/// and the breakdown by model, Agent, or provider.
 struct OverviewView: View {
     let session: Session
 
@@ -8,9 +9,11 @@ struct OverviewView: View {
     @State private var metric = UsageMetric.tokens
     @State private var style = TrendChart.Style.bars
     @State private var dimension = Dimension.model
-    /// 用量里点中的时段，下面展开它的 token 构成；和趋势图的时段无关。
+    /// The period tapped in usage; its token breakdown expands below. Unrelated to the trend
+    /// chart's period.
     @State private var usagePeriod = UsagePeriod.today
-    /// 图表的数据：这个时段的账本（只要第一页，趋势和份额每页都带）。
+    /// Data for the charts: this period's ledger (only the first page; every page carries the trend
+    /// and shares).
     @State private var ledger: RequestLedger?
     @State private var ledgerError: String?
     @State private var loadingLedger = false
@@ -184,8 +187,9 @@ struct OverviewView: View {
         }
     }
 
-    /// 网页 /me 的「最近 30 天最常用」：/me 里按调用次数排好的模型，最多 8 个，和上面的时段无关。
-    /// 点一个进到按它筛过的 30 天请求列表。
+    /// The web /me page's "Top models in the last 30 days": the models /me already sorts by call
+    /// count, at most 8, unrelated to the period above. Tapping one opens the 30-day request list
+    /// filtered to that model.
     private func topModels(_ info: KeyInfo) -> some View {
         Section {
             if info.topModels.isEmpty {
@@ -209,7 +213,7 @@ struct OverviewView: View {
         }
     }
 
-    /// 图表所在的那一行：有数据画图，没拿到数据转圈或报错。
+    /// The row holding a chart: draws it when there is data, otherwise a spinner or an error.
     @ViewBuilder
     private func chartBody<Content: View>(
         identifier: String, @ViewBuilder content: (RequestLedger) -> Content
@@ -263,13 +267,15 @@ struct OverviewView: View {
     }
 }
 
-/// 常用模型的一行：名字占一整行（密钥的模型列表里没有就写 id），名字和 tokens 才不会互相挤；
-/// 第二行是 id 和 tokens，第三行是次数、失败数和费用，再一条相对最常用那个的调用次数比例条。
+/// One row of the top models: the name takes a whole line (falling back to the id when the key's
+/// model list lacks it) so the name and tokens never squeeze each other; the second line holds the
+/// id and tokens, the third the calls, failures, and cost, then a bar with the call count relative
+/// to the most-used model.
 private struct TopModelRow: View {
     let model: TopModel
-    /// 模型列表里给人看的名字；只读密钥没有列表，为 nil。
+    /// The human-readable name from the model list; nil for a read-only key, which has no list.
     let label: String?
-    /// 调用次数相对最常用那个的比例，0 到 1。
+    /// Call count relative to the most-used model, from 0 to 1.
     let share: Double
 
     var body: some View {
@@ -324,7 +330,7 @@ private struct TopModelRow: View {
     }
 }
 
-/// 一个时段的 tokens、次数和费用；点一下选中，下面展开它的构成。
+/// One period's tokens, calls, and cost; tapping selects it and expands its breakdown below.
 private struct UsageCell: View {
     let period: UsagePeriod
     let totals: UsageTotals
@@ -363,7 +369,8 @@ private struct UsageCell: View {
     }
 }
 
-/// 点中的时段的构成：四类 token 的横条，再加缓存命中、失败率和平均每次的费用。
+/// Breakdown of the tapped period: a horizontal bar of the four token kinds, plus cache hits,
+/// failure rate, and average cost per call.
 private struct UsageDetail: View {
     let period: UsagePeriod
     let totals: UsageTotals
@@ -406,7 +413,7 @@ private struct UsageDetail: View {
     }
 }
 
-/// 构成下面的一个小数字：标题在上，值在下。
+/// One small figure below the breakdown: title on top, value beneath.
 private struct Stat: View {
     let title: String
     let value: String

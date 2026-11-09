@@ -48,7 +48,8 @@ struct SignInView: View {
                 }
                 Section {
                     SecureField("sk-magpie-key-…", text: $key)
-                        // 不是账号密码，别让系统在登录后弹「存储密码？」。
+                        // Not an account password; keep the system from offering
+                        // "Save password?" after signing in.
                         .textContentType(.oneTimeCode)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()

@@ -79,7 +79,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: Magpie
-        # XCTestCase 的构造器是 nonisolated 的，默认 MainActor 隔离会和它冲突。
+        # XCTestCase's initializers are nonisolated, which default MainActor isolation conflicts with.
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
 schemes:
   Magpie:
