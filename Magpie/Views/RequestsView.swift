@@ -165,7 +165,8 @@ struct RequestsView: View {
 
     private func summary(of ledger: RequestLedger) -> String {
         var parts = [
-            "\(Format.count(ledger.total)) 次请求", "\(Format.tokens(ledger.totals.tokens)) tokens",
+            "\(Format.count(ledger.totals.calls)) 次请求",
+            "\(Format.tokens(ledger.totals.tokens)) tokens",
         ]
         if ledger.totals.errors > 0 {
             parts.append("\(Format.count(ledger.totals.errors)) 次失败")
