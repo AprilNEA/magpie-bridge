@@ -2,7 +2,7 @@
 
 [English](README.md) · 简体中文
 
-鹊桥（Queqiao）是 [magpie](https://github.com/badlogic/magpie) 网关 `/me` 页面的原生客户端，目前是 iOS 版：拿到一把网关密钥的人，在手机上看自己的额度、用量、调用记录和可用的模型，并把 Claude Code、Codex 或任何 OpenAI 兼容工具的配置复制走。
+鹊桥（Queqiao）是 [magpie](https://github.com/yetone/magpie) 网关 `/me` 页面的原生客户端，目前是 iOS 版：拿到一把网关密钥的人，在手机上看自己的额度、用量、调用记录和可用的模型，并把 Claude Code、Codex 或任何 OpenAI 兼容工具的配置复制走。
 
 只调用密钥自己能访问的 `/v1/magpie/me`、`/v1/magpie/limit` 和 `/v1/magpie/usage/requests`，不需要改网关，也不需要管理员密钥。
 
