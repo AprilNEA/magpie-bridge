@@ -7,6 +7,7 @@ SwiftUI client for the magpie gateway `/me` page. `README.md` describes usage an
 - Run `make generate` after you change `project.yml`. `Magpie.xcodeproj` is generated and not tracked.
 - Run `make lint` and `make test` before you commit. `make check` runs lint, build, and test.
 - UI tests need a gateway: `make ui-test MAGPIE_TEST_GATEWAY_URL=... MAGPIE_TEST_GATEWAY_KEY=...`. Use `make demo-gateway` (key `sk-magpie-key-demo`) for populated charts.
+- `.github/workflows/ci.yml` runs `make lint`, `make build`, and `make test` on a GitHub-hosted macOS runner for every push to `master` and every pull request. The workflow selects the Xcode version from `options.xcodeVersion` in `project.yml`; to change the version, edit `project.yml`, not the workflow.
 
 ## Privacy
 
