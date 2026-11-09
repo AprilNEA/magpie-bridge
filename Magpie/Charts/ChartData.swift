@@ -43,7 +43,7 @@ nonisolated enum ChartData {
         var names = leaders.map(\.name)
         let rest =
             metric.value(of: ledger.totals) - leaders.reduce(0) { $0 + metric.value(of: $1.totals) }
-        if rest > 0.000_001 {
+        if rest >= metric.resolution {
             names.append(otherName)
         }
         return names
@@ -95,7 +95,7 @@ nonisolated enum ChartData {
             return Slice(name: share.name, value: value, fraction: value / total)
         }
         let rest = total - slices.reduce(0) { $0 + $1.value }
-        if rest > 0.000_001 {
+        if rest >= metric.resolution {
             slices.append(Slice(name: otherName, value: rest, fraction: rest / total))
         }
         return slices

@@ -73,6 +73,24 @@ private let ledgerJSON = """
         #expect(abs(slices[2].fraction - 0.1) < 0.0001)
     }
 
+    /// 费用是网关四舍五入过的：各家加起来比合计少几个万分之一不算「其他」；tokens 少 1 就算。
+    @Test func roundingLeftoverIsNotOther() throws {
+        let json = """
+            {"period":"7d","bucket":"day","calls":10,"input":1000,"cost":1.0,
+             "series":[{"label":"Nov 8","time":"2026-11-08T00:00:00Z","calls":10,"input":1000,
+                        "cost":1.0,"by":{"model":{"a":{"calls":6,"tokens":600,"cost":0.6},
+                                                  "b":{"calls":4,"tokens":399,"cost":0.3998}}}}],
+             "by":{"model":[{"id":"a","name":"A","calls":6,"input":600,"cost":0.6},
+                            {"id":"b","name":"B","calls":4,"input":399,"cost":0.3998}]}}
+            """
+        let ledger = try MagpieJSON.decoder().decode(RequestLedger.self, from: Data(json.utf8))
+        #expect(ChartData.names(in: ledger, by: .model, metric: .cost) == ["A", "B"])
+        #expect(ChartData.slices(in: ledger, by: .model, metric: .cost).map(\.name) == ["A", "B"])
+        #expect(ChartData.stacks(in: ledger, by: .model, metric: .cost).map(\.name) == ["A", "B"])
+        #expect(ChartData.names(in: ledger, by: .model, metric: .tokens) == ["A", "B", "其他"])
+        #expect(ChartData.slices(in: ledger, by: .model, metric: .tokens).last?.value == 1)
+    }
+
     @Test func noUsageMeansNoSlices() throws {
         let json = """
             {"period":"today","bucket":"hour","calls":0,"series":[],"by":{"model":[]}}

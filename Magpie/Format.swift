@@ -16,6 +16,15 @@ nonisolated enum Format {
         amount >= 100 ? "$" + Int(amount.rounded()).formatted() : String(format: "$%.2f", amount)
     }
 
+    /// 平均每次调用这种很小的金额：1 美元以上和 usd 一样，1 美分以上三位小数，再小四位。
+    static func unitCost(_ amount: Double) -> String {
+        switch amount {
+        case 1...: usd(amount)
+        case 0.01...: String(format: "$%.3f", amount)
+        default: String(format: "$%.4f", amount)
+        }
+    }
+
     static func when(_ date: Date) -> String {
         date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
     }

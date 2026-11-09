@@ -16,15 +16,13 @@ nonisolated struct KeyInfo: Decodable, Hashable, Sendable {
     }
 
     /// 配置页默认选中的模型：最常用且这把密钥仍可用的那个，否则列表的第一个。
-    /// topModels 里是供应商自己的模型名，可能没有 provider/ 前缀。
     var suggestedModel: ModelEntry? {
-        for top in topModels {
-            if let used = models.first(where: { $0.id == top.id || $0.id.hasSuffix("/" + top.id) })
-            {
-                return used
-            }
-        }
-        return models.first
+        topModels.lazy.compactMap(entry(matching:)).first ?? models.first
+    }
+
+    /// models 里对应这个常用模型的那项。topModels 里是供应商自己的模型名，可能没有 provider/ 前缀。
+    func entry(matching top: TopModel) -> ModelEntry? {
+        models.first { $0.id == top.id || $0.id.hasSuffix("/" + top.id) }
     }
 
     init(from decoder: any Decoder) throws {

@@ -41,13 +41,24 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["额度"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["用量"].exists)
         XCTAssertTrue(app.staticTexts["趋势"].exists)
+        shot(app, "overview")
+
+        // 用量的三个时段能点：点 7 天，下面换成它的四类 token 横条和缓存命中、失败率、平均每次。
+        let weekCell = element(app, "overview.usage.7d")
+        XCTAssertTrue(weekCell.waitForExistence(timeout: 5), app.debugDescription)
+        weekCell.tap()
+        XCTAssertTrue(
+            element(app, "overview.usage.mix").waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(weekCell.isSelected, app.debugDescription)
+        XCTAssertFalse(element(app, "overview.usage.today").isSelected)
+        XCTAssertTrue(app.staticTexts["缓存命中"].exists, app.debugDescription)
+        shot(app, "overview-usage-7d")
+
+        // 趋势图整个在标签栏底下，列表还没把它画出来，先滚上来；然后点一根柱子，上面浮出那个时间段的明细。
+        scroll(app, by: 0.5)
         let trend = element(app, "overview.trend")
         let trendShown = trend.waitForExistence(timeout: 20)
         XCTAssertTrue(trendShown, app.debugDescription)
-        shot(app, "overview")
-
-        // 趋势图的下半截压在标签栏底下，先滚上来；然后点一根柱子，上面浮出那个时间段的明细。
-        scroll(app, by: 0.4)
         if trendShown {
             let bar = trend.coordinate(withNormalizedOffset: CGVector(dx: 0.72, dy: 0.45))
             bar.tap()
@@ -132,6 +143,21 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(top.waitForExistence(timeout: 10), app.debugDescription)
         shot(app, "overview-top")
 
+        // 点一个常用模型，进到按它筛过的 30 天请求：顶上一个模型胶囊，列表里的行都是它。
+        tapRow(top)
+        let modelChip = app.buttons["requests.chip.model"]
+        XCTAssertTrue(modelChip.waitForExistence(timeout: 20), app.debugDescription)
+        let pickedSummary = app.staticTexts["requests.summary"]
+        XCTAssertTrue(pickedSummary.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(pickedSummary.label.hasPrefix("筛选后："), pickedSummary.label)
+        let pickedRow = app.staticTexts["requests.row.model"].firstMatch
+        XCTAssertTrue(pickedRow.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(
+            modelChip.label.contains(pickedRow.label), "\(modelChip.label) / \(pickedRow.label)")
+        shot(app, "overview-top-requests")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(top.waitForExistence(timeout: 10), app.debugDescription)
+
         app.tabBars.buttons["请求"].tap()
         XCTAssertTrue(app.staticTexts["requests.summary"].waitForExistence(timeout: 20))
         XCTAssertTrue(element(app, "requests.trend").waitForExistence(timeout: 10))
@@ -163,9 +189,12 @@ final class SignInFlowUITests: XCTestCase {
         shot(app, "requests-failed")
         tapRow(failedRow)
         XCTAssertTrue(app.navigationBars["请求详情"].waitForExistence(timeout: 10))
-        XCTAssertTrue(
-            app.staticTexts["错误类型"].exists || app.staticTexts["网关拒绝 404"].exists,
-            app.debugDescription)
+        // 最近一次失败要么是提供方回的错误（有错误类型），要么是网关自己拒绝的；
+        // 状态那行读出来是「状态、网关拒绝 404」，所以按包含找。
+        let rejected = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "网关拒绝")
+        ).firstMatch
+        XCTAssertTrue(app.staticTexts["错误类型"].exists || rejected.exists, app.debugDescription)
         shot(app, "request-detail-failed")
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(chip.waitForExistence(timeout: 5))

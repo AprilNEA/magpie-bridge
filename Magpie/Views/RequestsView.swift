@@ -22,6 +22,13 @@ struct RequestsView: View {
         var filter: RequestFilter
     }
 
+    /// 概览页点一个常用模型时带着筛选和时段进来；请求标签页用默认值。
+    init(session: Session, filter: RequestFilter = RequestFilter(), period: UsagePeriod = .week) {
+        self.session = session
+        _filter = State(initialValue: filter)
+        _period = State(initialValue: period)
+    }
+
     var body: some View {
         List {
             Section {

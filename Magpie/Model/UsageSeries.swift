@@ -123,6 +123,15 @@ nonisolated enum UsageMetric: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// 比这个还小的量当作没有。tokens 和次数是整数；费用网关四舍五入到小数点后四位，
+    /// 几家加起来和合计能差出几个万分之一，不到千分之一美元的差额是舍入，不是谁的用量。
+    var resolution: Double {
+        switch self {
+        case .tokens, .calls: 1
+        case .cost: 0.001
+        }
+    }
+
     /// 坐标轴和图例上的写法。
     func format(_ value: Double) -> String {
         switch self {

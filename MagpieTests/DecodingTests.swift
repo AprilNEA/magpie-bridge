@@ -45,6 +45,30 @@ import Testing
         #expect(info.limits.isEmpty)
     }
 
+    /// 缓存命中按提示词（输入加缓存读写）算，失败率和平均每次按全部调用算。
+    @Test func usageTotalsRatesAndTokenKinds() throws {
+        let json = """
+            {"calls":8,"errors":2,"input":100,"output":50,"cache_read":300,"cache_write":100,
+             "cost":0.4}
+            """
+        let totals = try MagpieJSON.decoder().decode(UsageTotals.self, from: Data(json.utf8))
+        #expect(totals.tokens == 550)
+        #expect(totals.promptTokens == 500)
+        #expect(abs((totals.cacheHitRate ?? 0) - 0.6) < 1e-9)
+        #expect(abs((totals.errorRate ?? 0) - 0.25) < 1e-9)
+        #expect(abs((totals.averageCost ?? 0) - 0.05) < 1e-9)
+        #expect(TokenKind.allCases.map { $0.value(of: totals) } == [100, 50, 300, 100])
+
+        // 全失败、一个 token 都没有：有失败率，没有缓存命中。
+        let failed = try MagpieJSON.decoder().decode(
+            UsageTotals.self, from: Data(#"{"calls":3,"errors":3}"#.utf8))
+        #expect(failed.cacheHitRate == nil)
+        #expect(failed.errorRate == 1)
+        #expect(failed.averageCost == 0)
+        #expect(UsageTotals().errorRate == nil)
+        #expect(UsageTotals().averageCost == nil)
+    }
+
     @Test func limitStatusTitlesAndZeroReset() throws {
         let json = """
             [{"period":"day","reset":"0001-01-01T00:00:00Z","tokens":12,"tokenLimit":100,"spent":true},
