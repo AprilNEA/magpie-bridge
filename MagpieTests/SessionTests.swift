@@ -55,6 +55,7 @@ import Testing
         #expect(session.credential?.baseURL.absoluteString == "https://magpie.example.com")
         #expect(session.credential?.key == "sk-magpie-key-1")
         #expect(session.info?.name == "staff-test")
+        #expect(session.refreshedAt != nil)
         #expect(store.load() == session.credential)
     }
 
@@ -92,6 +93,7 @@ import Testing
         await session.refresh()
         #expect(session.credential == nil)
         #expect(session.info == nil)
+        #expect(session.refreshedAt == nil)
         #expect(keychain.items.isEmpty)
     }
 

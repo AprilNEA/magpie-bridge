@@ -6,6 +6,8 @@ import Observation
 final class Session {
     private(set) var credential: Credential?
     private(set) var info: KeyInfo?
+    /// info 是什么时候拿到的。
+    private(set) var refreshedAt: Date?
     private(set) var isRefreshing = false
     /// 最近一次刷新失败的原因；成功后清除。
     private(set) var refreshError: String?
@@ -63,6 +65,7 @@ final class Session {
         }
         self.credential = credential
         self.info = info
+        refreshedAt = Date()
         refreshError = nil
     }
 
@@ -72,6 +75,7 @@ final class Session {
         defer { isRefreshing = false }
         do {
             info = try await client.me()
+            refreshedAt = Date()
             refreshError = nil
         } catch MagpieError.invalidKey {
             // 密钥被停用或删除：和网页一样回到输入页。
@@ -85,6 +89,7 @@ final class Session {
         try? store.forgetKey()
         credential = nil
         info = nil
+        refreshedAt = nil
         refreshError = nil
     }
 }

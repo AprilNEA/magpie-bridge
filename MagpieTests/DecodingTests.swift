@@ -66,7 +66,59 @@ import Testing
         #expect(limit.key == "staff-test")
         #expect(limit.heldToTitles == ["额度", "模型"])
         #expect(limit.models == ["claude/*", "codex/*", "deepseek/*"])
+        #expect(limit.limits.map(\.title) == ["每 5 小时", "每周"])
         #expect(limit.expires == nil)
+        // 网关只在有的时候才给这些字段：没有就是不可见配额、全部 MCP、没有签发者。
+        #expect(!limit.quotas)
+        #expect(limit.quotaProviders.isEmpty)
+        #expect(limit.mcpAccess == .every)
+        #expect(limit.issuerLimits.isEmpty)
+    }
+
+    @Test func keyLimitWithIssuerQuotasAndMCP() throws {
+        let json = """
+            {"limited":false,"key":"issued","heldTo":["accounts"],"quotas":true,
+             "quotaProviders":["claude","codex"],"mcp":["github","web-search/search"],
+             "issuerLimits":[{"period":"month","cost":120.5,"costLimit":300,"costLeft":179.5}],
+             "expires":"2027-01-01T00:00:00Z"}
+            """
+        let limit = try MagpieJSON.decoder().decode(KeyLimit.self, from: Data(json.utf8))
+        #expect(limit.heldToTitles == ["账号"])
+        #expect(limit.quotas)
+        #expect(limit.quotaProviders == ["claude", "codex"])
+        #expect(limit.mcpAccess == .some(["github", "web-search/search"]))
+        #expect(limit.issuerLimits.map(\.title) == ["每月"])
+        #expect(limit.issuerLimits[0].costLeft == 179.5)
+        #expect(limit.expires != nil)
+    }
+
+    /// 只有一个 "-" 是一个 MCP 都不能用；不是空列表那种「全部」。
+    @Test func keyLimitMCPDashMeansNone() throws {
+        let json = #"{"limited":false,"key":"k","mcp":["-"]}"#
+        let limit = try MagpieJSON.decoder().decode(KeyLimit.self, from: Data(json.utf8))
+        #expect(limit.mcpAccess == .none)
+    }
+
+    /// 费用上限优先于 tokens 上限；用完了不管比例都算满；剩余用网关算好的数。
+    @Test func limitStatusUsageFollowsCostFirst() throws {
+        let json = """
+            [{"period":"day","cost":1.2,"costLimit":2.5,"costLeft":1.3,
+              "tokens":900,"tokenLimit":1000,"tokensLeft":100,"calls":7},
+             {"period":"day","tokens":250,"tokenLimit":1000,"tokensLeft":750},
+             {"period":"day","cost":0.5,"costLimit":2.5,"costLeft":2,"spent":true},
+             {"period":"day","calls":3}]
+            """
+        let limits = try MagpieJSON.decoder().decode([LimitStatus].self, from: Data(json.utf8))
+        #expect(abs(limits[0].usedFraction - 0.48) < 1e-9)
+        #expect(limits[0].usedText == "$1.20 / $2.50")
+        #expect(limits[0].leftText == "剩余 $1.30")
+        #expect(limits[1].usedFraction == 0.25)
+        #expect(limits[1].usedText == "\(Format.tokens(250)) / \(Format.tokens(1000))")
+        #expect(limits[1].leftText == "剩余 \(Format.tokens(750))")
+        #expect(limits[2].usedFraction == 1)
+        #expect(limits[3].usedFraction == 0)
+        #expect(limits[3].usedText == "3 次")
+        #expect(limits[3].leftText == nil)
     }
 
     @Test func requestLedgerFromGateway() throws {

@@ -36,6 +36,42 @@ nonisolated struct LimitStatus: Decodable, Hashable, Identifiable, Sendable {
         reset > Date(timeIntervalSince1970: 0) ? reset : nil
     }
 
+    /// 用掉的比例：费用额度优先，只限 tokens 的按 tokens 算；用完了算 1，没有上限算 0。
+    var usedFraction: Double {
+        if spent {
+            return 1
+        }
+        if let cap = costLimit, cap > 0 {
+            return cost / cap
+        }
+        if let cap = tokenLimit, cap > 0 {
+            return Double(tokens) / Double(cap)
+        }
+        return 0
+    }
+
+    /// 「$1.20 / $2.50」这样的已用 / 上限；没有上限的只写调用次数。
+    var usedText: String {
+        if let cap = costLimit, cap > 0 {
+            return "\(Format.usd(cost)) / \(Format.usd(cap))"
+        }
+        if let cap = tokenLimit, cap > 0 {
+            return "\(Format.tokens(tokens)) / \(Format.tokens(cap))"
+        }
+        return "\(Format.count(calls)) 次"
+    }
+
+    /// 还剩多少，按网关算好的数；没有上限时为空。
+    var leftText: String? {
+        if let cap = costLimit, cap > 0 {
+            return "剩余 \(Format.usd(costLeft))"
+        }
+        if let cap = tokenLimit, cap > 0 {
+            return "剩余 \(Format.tokens(tokensLeft))"
+        }
+        return nil
+    }
+
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         period = try container.decode(String.self, forKey: .period)

@@ -1,14 +1,12 @@
 import SwiftUI
-import UIKit
 
-/// 网页 /me 的「配置」：选工具和模型，复制配置片段。
+/// 网页 /me 的「配置」：选工具和模型，复制或分享配置片段。
 struct SetupView: View {
     let session: Session
 
     @State private var target = SetupTarget.claudeCode
     @State private var model: ModelEntry?
     @State private var withKey = false
-    @State private var copied: String?
 
     var body: some View {
         Form {
@@ -30,11 +28,22 @@ struct SetupView: View {
                         NavigationLink {
                             ModelPickerView(models: info.models, selection: $model)
                         } label: {
-                            LabeledContent("模型", value: model?.id ?? "未选择")
+                            LabeledContent("模型") {
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(model?.id ?? "未选择")
+                                        .font(.callout.monospaced())
+                                        .accessibilityIdentifier("setup.model")
+                                    if let model, model.label != model.id {
+                                        Text(model.label).font(.caption)
+                                    }
+                                }
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            }
                         }
                         Toggle("在配置里填入我的密钥", isOn: $withKey)
                     } footer: {
-                        Text(target.note)
+                        Text(withKey ? target.note + "片段里带着你的密钥，别发给别人。" : target.note)
                     }
                     let blocks = SetupSnippet.blocks(
                         for: target, baseURL: credential.baseURL,
@@ -46,14 +55,17 @@ struct SetupView: View {
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         } header: {
-                            HStack {
+                            HStack(spacing: 16) {
                                 Text(block.title)
                                 Spacer()
-                                Button(copied == block.id ? "已复制" : "复制") {
-                                    copy(block)
+                                ShareLink(item: block.text) {
+                                    Label("分享", systemImage: "square.and.arrow.up")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .font(.caption)
-                                .textCase(nil)
+                                CopyButton(text: block.text)
+                                    .font(.caption)
+                                    .textCase(nil)
                             }
                         }
                     }
@@ -65,17 +77,6 @@ struct SetupView: View {
             guard let models else { return }
             if let model, models.contains(model) { return }
             model = session.info?.suggestedModel
-        }
-    }
-
-    private func copy(_ block: SetupSnippet.Block) {
-        UIPasteboard.general.string = block.text
-        copied = block.id
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            if copied == block.id {
-                copied = nil
-            }
         }
     }
 }

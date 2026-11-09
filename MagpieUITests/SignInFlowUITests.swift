@@ -174,6 +174,10 @@ final class SignInFlowUITests: XCTestCase {
 
         app.tabBars.buttons["配置"].tap()
         XCTAssertTrue(app.staticTexts["~/.claude/settings.json"].waitForExistence(timeout: 10))
+        // 模型那行写着选中模型的 id，默认是最常用的那个。
+        let chosen = app.staticTexts["setup.model"]
+        XCTAssertTrue(chosen.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertNotEqual(chosen.label, "未选择")
         shot(app, "setup-claude")
         app.buttons["Codex"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["~/.codex/config.toml"].waitForExistence(timeout: 5))
@@ -184,13 +188,29 @@ final class SignInFlowUITests: XCTestCase {
         shot(app, "models")
         app.navigationBars.buttons.firstMatch.tap()
 
+        // 设置页：/limit 的每条额度一行进度条，再往下是签发者的额度、忘记密钥和关于。
         app.tabBars.buttons["设置"].tap()
-        XCTAssertTrue(app.buttons["settings.forget"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["受限于"].waitForExistence(timeout: 10))
+        XCTAssertTrue(element(app, "settings.limit").waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["MCP 服务器"].exists, app.debugDescription)
         shot(app, "settings")
-        app.buttons["settings.forget"].tap()
+        let forget = app.buttons["settings.forget"]
+        reveal(app, forget)
+        XCTAssertTrue(element(app, "settings.issuerLimit").exists, app.debugDescription)
+        shot(app, "settings-bottom")
+        forget.tap()
         app.buttons["确定忘记"].tap()
         XCTAssertTrue(app.secureTextFields["signin.key"].waitForExistence(timeout: 10))
+    }
+
+    /// 往上滚到能点到这个元素为止。List 只给滚进屏幕的行建元素，所以页面比屏幕长时，
+    /// 底下的按钮在滚出来之前连 exists 都是 false，不能先等它存在。
+    @MainActor
+    private func reveal(_ app: XCUIApplication, _ element: XCUIElement) {
+        for _ in 0..<4 where !element.isHittable {
+            scroll(app, by: 0.5)
+        }
+        XCTAssertTrue(element.isHittable, app.debugDescription)
     }
 
     /// 图表这类不是按钮也不是文字的东西，按 accessibilityIdentifier 找。
@@ -228,7 +248,9 @@ final class SignInFlowUITests: XCTestCase {
         let settings = app.tabBars.buttons["设置"]
         guard settings.waitForExistence(timeout: 5) else { return }
         settings.tap()
-        app.buttons["settings.forget"].tap()
+        let forget = app.buttons["settings.forget"]
+        reveal(app, forget)
+        forget.tap()
         app.buttons["确定忘记"].tap()
     }
 

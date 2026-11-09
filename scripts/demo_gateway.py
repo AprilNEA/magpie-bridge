@@ -52,6 +52,13 @@ ERRORS = [
 ]
 LIMIT_5H_USD = 2.5
 LIMIT_WEEK_USD = 40.0
+# 这把密钥是在另一把受限的密钥下签发的：签发者每月的额度，所有签出去的密钥一起算。
+LIMIT_ISSUER_MONTH_USD = 300.0
+# 签发者签出去的密钥数，签发者额度里的用量按这个倍数算。
+ISSUED_KEYS = 3
+# 这把密钥能用的 MCP 服务器和工具，格式同 access.Key.MCP。
+MCP = ["web-search", "github/search_code", "github/get_file_contents"]
+EXPIRES_IN_DAYS = 45
 # 今天格外忙，不管是不是周末：打开 App 的那一刻总有东西可看。
 TODAY_BOOST = 2.2
 
@@ -411,25 +418,13 @@ class Demo:
             ("hours", {"hours": 5}, start_5h, start_5h + timedelta(hours=5), LIMIT_5H_USD),
             ("week", {}, week_start, week_start + timedelta(weeks=1), LIMIT_WEEK_USD),
         ):
-            window = [r for r in rows if r["_time"] >= start]
-            t = totals(window)
-            cost = t["cost"]
-            out.append(
-                {
-                    "period": period,
-                    **extra,
-                    "start": rfc3339(start),
-                    "reset": rfc3339(reset),
-                    "calls": t["calls"],
-                    "tokens": t["input"] + t["output"] + t["cache_read"] + t["cache_write"],
-                    "cost": cost,
-                    "costLimit": cap,
-                    "tokensLeft": 0,
-                    "costLeft": round(max(cap - cost, 0), 4),
-                    "spent": cost >= cap,
-                }
-            )
+            out.append(status(period, extra, rows, start, reset, cap))
         return out
+
+    def issuer_limits(self, rows, now):
+        month_start = day_start(now).replace(day=1)
+        reset = (month_start + timedelta(days=32)).replace(day=1)
+        return [status("month", {}, rows, month_start, reset, LIMIT_ISSUER_MONTH_USD, ISSUED_KEYS)]
 
     def me(self, now):
         rows = self.rows(now)
@@ -454,16 +449,39 @@ class Demo:
         }
 
     def limit(self, now):
-        limits = self.limits(self.rows(now), now)
+        rows = self.rows(now)
+        limits = self.limits(rows, now)
         return {
+            "expires": rfc3339(day_start(now) + timedelta(days=EXPIRES_IN_DAYS)),
             "heldTo": ["budget", "models"],
+            "issuerLimits": self.issuer_limits(rows, now),
             "key": KEY_NAME,
             "limit": limits[0],
             "limited": True,
             "limits": limits,
+            "mcp": MCP,
             "models": sorted({f"{m[2]}/*" for m in MODELS}),
             "quotas": False,
         }
+
+
+def status(period, extra, rows, start, reset, cap, keys=1):
+    """一条额度现在的窗口（budget.Status）：窗口内调用的合计对着上限；keys 把用量算成几把密钥的。"""
+    t = totals([r for r in rows if r["_time"] >= start])
+    cost = round(t["cost"] * keys, 4)
+    return {
+        "period": period,
+        **extra,
+        "start": rfc3339(start),
+        "reset": rfc3339(reset),
+        "calls": t["calls"] * keys,
+        "tokens": (t["input"] + t["output"] + t["cache_read"] + t["cache_write"]) * keys,
+        "cost": cost,
+        "costLimit": cap,
+        "tokensLeft": 0,
+        "costLeft": round(max(cap - cost, 0), 4),
+        "spent": cost >= cap,
+    }
 
 
 class Handler(BaseHTTPRequestHandler):

@@ -55,37 +55,20 @@ struct LimitGauge: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// 费用额度优先；只限 tokens 的按 tokens 算。
-    private var fraction: Double {
-        if limit.spent {
-            return 1
-        }
-        if let cap = limit.costLimit, cap > 0 {
-            return limit.cost / cap
-        }
-        if let cap = limit.tokenLimit, cap > 0 {
-            return Double(limit.tokens) / Double(cap)
-        }
-        return 0
-    }
+    private var fraction: Double { limit.usedFraction }
+    private var usedText: String { limit.usedText }
+    private var color: Color { limit.usageColor }
 
     /// 画出来的那段弧：0 也画一点点，超过 1 封顶。
     private var arc: Double {
         min(max(fraction, 0.001), 1)
     }
+}
 
-    private var usedText: String {
-        if let cap = limit.costLimit, cap > 0 {
-            return "\(Format.usd(limit.cost)) / \(Format.usd(cap))"
-        }
-        if let cap = limit.tokenLimit, cap > 0 {
-            return "\(Format.tokens(limit.tokens)) / \(Format.tokens(cap))"
-        }
-        return "\(Format.count(limit.calls)) 次"
-    }
-
-    private var color: Color {
-        switch fraction {
+extension LimitStatus {
+    /// 绿、橙、红随用掉的比例变；圆环和进度条用同一套。
+    var usageColor: Color {
+        switch usedFraction {
         case ..<0.6: .green
         case ..<0.85: .orange
         default: .red
