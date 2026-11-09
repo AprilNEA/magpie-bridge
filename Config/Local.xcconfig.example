@@ -1,0 +1,9 @@
+// Per-developer build settings. `make generate` copies this file to
+// Config/Local.xcconfig, which Git ignores. Edit the copy, not this file.
+
+// Gateway address prefilled on the sign-in page. Leave empty for no prefill.
+// xcconfig reads "//" as a comment, so write a URL as https:/$()/host.
+MAGPIE_DEFAULT_GATEWAY_URL =
+
+// Apple Developer team ID. Device builds need it; the simulator does not.
+DEVELOPMENT_TEAM =

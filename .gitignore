@@ -4,3 +4,5 @@ DerivedData/
 *.xcresult
 xcuserdata/
 *.xcuserstate
+Config/Local.xcconfig
+Magpie.xcodeproj/

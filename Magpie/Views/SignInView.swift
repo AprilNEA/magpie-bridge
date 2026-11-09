@@ -18,7 +18,7 @@ struct SignInView: View {
         _address = State(initialValue: session.lastAddress ?? Self.defaultAddress)
     }
 
-    /// 工程里配置的默认网关（MAGPIE_DEFAULT_GATEWAY_URL）。
+    /// Gateway address prefilled for this build; see Config/Local.xcconfig.
     static var defaultAddress: String {
         Bundle.main.object(forInfoDictionaryKey: "MagpieDefaultGatewayURL") as? String ?? ""
     }

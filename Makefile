@@ -4,8 +4,11 @@ DESTINATION ?= platform=iOS Simulator,name=iPhone 17 Pro
 XCODEBUILD = xcodebuild -project Magpie.xcodeproj -scheme Magpie -derivedDataPath .build/DerivedData
 XCODEBUILD_UNSIGNED = $(XCODEBUILD) CODE_SIGNING_ALLOWED=NO
 
-generate:
+generate: Config/Local.xcconfig
 	xcodegen generate
+
+Config/Local.xcconfig:
+	cp Config/Local.xcconfig.example $@
 
 format:
 	xcrun swift-format format --in-place --recursive Magpie MagpieTests MagpieUITests

@@ -8,7 +8,7 @@
 
 ## 使用
 
-1. 打开 App，填网关地址（默认是 `https://magpie.example.com`，可改）和网关密钥，点「继续」。密钥先用 `/v1/magpie/me` 验证，通过后才存进这台设备的钥匙串，不会同步到 iCloud。
+1. 打开 App，填网关地址和网关密钥，点「继续」。密钥先用 `/v1/magpie/me` 验证，通过后才存进这台设备的钥匙串，不会同步到 iCloud。
 2. **概览**：每条额度一个环形进度（绿 / 橙 / 红对应用了不到 60% / 85% / 更多）和重置时间；今天 / 7 天 / 30 天的 tokens、请求数和费用；**趋势**是按模型、Agent 或提供方堆起来的柱状图，也能切成平滑的堆叠面积图，可切时间范围和指标（Tokens / 请求 / 费用），30 天和全部能横向滚动、一开始停在最近的桶，点一个时间段看它的明细，再点取消；**构成**是同一时段的环形占比图，点一块看它的份额，点中间取消。只画前五名，其余并成「其他」。下拉刷新。
 3. **请求**：这把密钥自己的调用记录，可按今天 / 7 天 / 30 天 / 全部筛选，列表上方是这个时段请求数的面积图（失败数是下面那条红线），往下翻自动加载；点一条看 tokens、用时、错误原因。
 4. **配置**：选工具（Claude Code、Codex、OpenAI 兼容、curl 测试）和模型，复制配置片段。默认不带密钥，打开「在配置里填入我的密钥」才会写进去。
@@ -21,12 +21,14 @@
 需要 Xcode 26 以上、[XcodeGen](https://github.com/yonaskolb/XcodeGen)、[SwiftLint](https://github.com/realm/SwiftLint)。
 
 ```sh
-make generate   # 从 project.yml 生成 Magpie.xcodeproj
+make generate   # 从 project.yml 生成 Magpie.xcodeproj（不进 Git）
 make lint       # swift-format --strict 和 swiftlint --strict
 make build      # 编译模拟器版本
 make test       # 单元测试（Swift Testing）
 make check      # 以上三步
 ```
+
+每个开发者自己的设置放在 `Config/Local.xcconfig`，Git 忽略它；文件不存在时 `make generate` 会从 `Config/Local.xcconfig.example` 复制一份。`MAGPIE_DEFAULT_GATEWAY_URL` 是登录页预填的网关地址（留空则不预填），`DEVELOPMENT_TEAM` 是真机构建用的团队 ID；模拟器两者都不需要。不要把真实的网关地址或团队 ID 写进任何被 Git 跟踪的文件。
 
 对着一个网关跑 UI 测试，并把每个页面截图存下来：
 
@@ -38,7 +40,7 @@ make ui-test MAGPIE_TEST_GATEWAY_URL=http://localhost:3425 \
 
 手边没有数据够多的网关时，`make demo-gateway` 在 `http://localhost:3427` 起一个演示网关（`scripts/demo_gateway.py`，只依赖 Python 3 标准库）：90 天、几千条确定性的假调用，覆盖 5 个模型、两个 Agent、三个提供方、约 4% 的失败和两条额度；密钥是 `sk-magpie-key-demo`。接口和响应形状与真网关的 `/v1/magpie/me`、`/limit`、`/usage/requests` 一致，用它跑 UI 测试就能截到图表有内容的页面。
 
-登录页预填的网关地址由 `project.yml` 里的 `MAGPIE_DEFAULT_GATEWAY_URL` 决定；连本机开发用的网关（`http://localhost:3425`）已通过 `NSAllowsLocalNetworking` 放行。
+连本机开发用的网关（`http://localhost:3425`）已通过 `NSAllowsLocalNetworking` 放行。
 
 目录：
 
@@ -49,6 +51,7 @@ make ui-test MAGPIE_TEST_GATEWAY_URL=http://localhost:3425 \
 - `Magpie/Session.swift`：登录状态和 `/me` 的最新结果。
 - `Magpie/SetupSnippet.swift`：和网页 `/me` 一样的配置片段。
 - `Magpie/Views`：登录、概览、请求、配置、设置。
-- `MagpieTests`：解码、图表数据、客户端、片段、钥匙串和登录流程的单元测试，`Fixtures` 里是本地网关的真实响应。
+- `MagpieTests`：解码、图表数据、客户端、片段、钥匙串和登录流程的单元测试，`Fixtures` 里是本机开发网关的响应。
 - `MagpieUITests`：对着一个网关走一遍所有页面，切图表的时间范围、图形和维度。
+- `Config/Local.xcconfig.example`：被 Git 忽略的个人设置文件的模板。
 - `scripts/demo_gateway.py`：演示网关。
