@@ -74,9 +74,11 @@ nonisolated struct MagpieClient: Sendable {
         try await get("v1/magpie/limit")
     }
 
-    /// 一页请求记录，最新的在前；limit 最大 500。
+    /// 一页请求记录，最新的在前；limit 最大 500。合计、时间轴和份额是整个时段筛选后的，每页都带。
+    /// 天和小时按网关所在机器的时区切：这条路由不认 ?tz=。
     func requests(
-        period: UsagePeriod, offset: Int = 0, limit: Int = 100
+        period: UsagePeriod, filter: RequestFilter = RequestFilter(), offset: Int = 0,
+        limit: Int = 100
     ) async throws(MagpieError) -> RequestLedger {
         try await get(
             "v1/magpie/usage/requests",
@@ -84,7 +86,7 @@ nonisolated struct MagpieClient: Sendable {
                 URLQueryItem(name: "period", value: period.rawValue),
                 URLQueryItem(name: "offset", value: String(offset)),
                 URLQueryItem(name: "limit", value: String(limit)),
-            ])
+            ] + filter.queryItems)
     }
 
     func request(_ path: String, query: [URLQueryItem] = []) -> URLRequest {

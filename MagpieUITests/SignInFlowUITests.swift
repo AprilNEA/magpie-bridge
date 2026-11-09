@@ -1,7 +1,7 @@
 import XCTest
 
 /// 对着一个网关（真的，或 scripts/demo_gateway.py）走一遍：错密钥报错、对密钥进入四个页面、
-/// 切图表的时间范围和维度、忘记密钥回到输入页。
+/// 切图表的时间范围和维度、把请求筛成只看失败、忘记密钥回到输入页。
 /// 需要 MAGPIE_TEST_GATEWAY_URL 和 MAGPIE_TEST_GATEWAY_KEY；
 /// 给了 MAGPIE_SCREENSHOT_DIR 就把每个页面的截图存进去。
 final class SignInFlowUITests: XCTestCase {
@@ -126,6 +126,12 @@ final class SignInFlowUITests: XCTestCase {
         }
         shot(app, "overview-agents")
 
+        // 最底下是网页 /me 的「最近 30 天最常用」，和上面选的时段无关，列出的模型要能看见。
+        scroll(app, by: 0.5)
+        let top = element(app, "overview.top")
+        XCTAssertTrue(top.waitForExistence(timeout: 10), app.debugDescription)
+        shot(app, "overview-top")
+
         app.tabBars.buttons["请求"].tap()
         XCTAssertTrue(app.staticTexts["requests.summary"].waitForExistence(timeout: 20))
         XCTAssertTrue(element(app, "requests.trend").waitForExistence(timeout: 10))
@@ -136,6 +142,35 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["请求详情"].waitForExistence(timeout: 10))
         shot(app, "request-detail")
         app.navigationBars.buttons.firstMatch.tap()
+
+        // 只看失败：从筛选菜单勾上，汇总前面多出「筛选后」，顶上出现一个胶囊；
+        // 失败那条的详情里有错误类型（被网关拒绝的没有，状态写「网关拒绝」）。点胶囊取消筛选。
+        let requestsSummary = app.staticTexts["requests.summary"]
+        let unfiltered = requestsSummary.label
+        app.buttons["requests.filter"].tap()
+        let failedOnly = app.buttons["只看失败"].firstMatch
+        XCTAssertTrue(failedOnly.waitForExistence(timeout: 5), app.debugDescription)
+        failedOnly.tap()
+        let filtered = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label BEGINSWITH '筛选后：'"), object: requestsSummary)
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [filtered], timeout: 20), .completed, app.debugDescription)
+        XCTAssertNotEqual(requestsSummary.label, unfiltered)
+        let chip = app.buttons["requests.chip.failed"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), app.debugDescription)
+        let failedRow = app.staticTexts["requests.row.model"].firstMatch
+        XCTAssertTrue(failedRow.waitForExistence(timeout: 10))
+        shot(app, "requests-failed")
+        tapRow(failedRow)
+        XCTAssertTrue(app.navigationBars["请求详情"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["错误类型"].exists || app.staticTexts["网关拒绝 404"].exists,
+            app.debugDescription)
+        shot(app, "request-detail-failed")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        chip.tap()
+        XCTAssertTrue(waitUntilGone(chip), app.debugDescription)
 
         app.tabBars.buttons["配置"].tap()
         XCTAssertTrue(app.staticTexts["~/.claude/settings.json"].waitForExistence(timeout: 10))

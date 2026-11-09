@@ -9,8 +9,8 @@
 ## 使用
 
 1. 打开 App，填网关地址和网关密钥，点「继续」。密钥先用 `/v1/magpie/me` 验证，通过后才存进这台设备的钥匙串，不会同步到 iCloud。
-2. **概览**：每条额度一个环形进度（绿 / 橙 / 红对应用了不到 60% / 85% / 更多）和重置时间；今天 / 7 天 / 30 天的 tokens、请求数和费用；**趋势**是按模型、Agent 或提供方堆起来的柱状图，也能切成平滑的堆叠面积图，可切时间范围和指标（Tokens / 请求 / 费用），30 天和全部能横向滚动、一开始停在最近的桶，点一个时间段看它的明细，再点取消；**构成**是同一时段的环形占比图，点一块看它的份额，点中间取消。只画前五名，其余并成「其他」。下拉刷新。
-3. **请求**：这把密钥自己的调用记录，可按今天 / 7 天 / 30 天 / 全部筛选，列表上方是这个时段请求数的面积图（失败数是下面那条红线），往下翻自动加载；点一条看 tokens、用时、错误原因。
+2. **概览**：每条额度一个环形进度（绿 / 橙 / 红对应用了不到 60% / 85% / 更多）和重置时间；今天 / 7 天 / 30 天的 tokens、请求数和费用；**趋势**是按模型、Agent 或提供方堆起来的柱状图，也能切成平滑的堆叠面积图，可切时间范围和指标（Tokens / 请求 / 费用），30 天和全部能横向滚动、一开始停在最近的桶，点一个时间段看它的明细，再点取消；**构成**是同一时段的环形占比图，点一块看它的份额，点中间取消。只画前五名，其余并成「其他」。**最近 30 天最常用**和网页一样，列出网关按调用次数排好的模型和它们的 tokens。下拉刷新。
+3. **请求**：这把密钥自己今天 / 7 天 / 30 天 / 全部的调用记录，列表上方是这个时段请求数的面积图（失败数是下面那条红线），往下翻自动加载。筛选菜单可以只看失败的，或只看某个模型、Agent、提供方；搜索框在请求的模型、提供方和上游主机里找。筛选在网关上做，图和合计跟着变，设了的条件变成胶囊，点一下去掉。点一条看 tokens、用时、错误类型和原因、网关试了几次、上游主机和来回的字节数。被网关自己拒绝的请求和失败后转给重试的那一次会标出来，和网关自己的页面一样不算一次请求。
 4. **配置**：选工具（Claude Code、Codex、OpenAI 兼容、curl 测试）和模型，复制配置片段。默认不带密钥，打开「在配置里填入我的密钥」才会写进去。
 5. **设置**：网关地址和版本、密钥受到的限制、忘记密钥。
 
@@ -38,13 +38,13 @@ make ui-test MAGPIE_TEST_GATEWAY_URL=http://localhost:3425 \
   MAGPIE_SCREENSHOT_DIR=/tmp/magpie-shots
 ```
 
-手边没有数据够多的网关时，`make demo-gateway` 在 `http://localhost:3427` 起一个演示网关（`scripts/demo_gateway.py`，只依赖 Python 3 标准库）：90 天、几千条确定性的假调用，覆盖 5 个模型、两个 Agent、三个提供方、约 4% 的失败和两条额度；密钥是 `sk-magpie-key-demo`。接口和响应形状与真网关的 `/v1/magpie/me`、`/limit`、`/usage/requests` 一致，用它跑 UI 测试就能截到图表有内容的页面。
+手边没有数据够多的网关时，`make demo-gateway` 在 `http://localhost:3427` 起一个演示网关（`scripts/demo_gateway.py`，只依赖 Python 3 标准库）：90 天、几千条确定性的假调用，覆盖 5 个模型、两个 Agent、三个提供方、约 4% 的失败、少量重试和网关拒绝，以及两条额度；密钥是 `sk-magpie-key-demo`。接口和响应形状与真网关的 `/v1/magpie/me`、`/limit`、`/usage/requests` 一致，包括后者的 `failed`、`model`、`agent`、`provider`、`q` 筛选，用它跑 UI 测试就能截到图表有内容的页面。
 
 连本机开发用的网关（`http://localhost:3425`）已通过 `NSAllowsLocalNetworking` 放行。
 
 目录（Xcode target 和 Swift 模块仍叫 `Magpie`，产品名是鹊桥）：
 
-- `Magpie/Model`：网关 JSON 的模型，缺省字段都有默认值；`UsageSeries.swift` 是 `/usage/requests` 里的时间轴和份额。
+- `Magpie/Model`：网关 JSON 的模型，缺省字段都有默认值；`UsageSeries.swift` 是 `/usage/requests` 里的时间轴和份额，`RequestFilter.swift` 是请求的筛选条件和它加上的查询参数。
 - `Magpie/Charts`：Swift Charts 画的趋势图（柱状 / 面积）、构成环形图、额度环，以及把账本整理成图表数据的 `ChartData`。
 - `Magpie/Networking/MagpieClient.swift`：`/v1/magpie/*` 调用和错误映射。
 - `Magpie/Storage/CredentialStore.swift`：钥匙串里的密钥。
@@ -53,6 +53,6 @@ make ui-test MAGPIE_TEST_GATEWAY_URL=http://localhost:3425 \
 - `Magpie/Views`：登录、概览、请求、配置、设置。
 - `Magpie/AppIcon.icon`：Icon Composer 格式的应用图标，`Assets/` 里是平面的 SVG 图层，`icon.json` 里是背景、玻璃效果和各外观的填充色。Xcode 从它渲染所有尺寸和外观（默认、深色、透明、着色）。用 Xcode 26 自带的 Icon Composer 编辑。
 - `MagpieTests`：解码、图表数据、客户端、片段、钥匙串和登录流程的单元测试，`Fixtures` 里是本机开发网关的响应。
-- `MagpieUITests`：对着一个网关走一遍所有页面，切图表的时间范围、图形和维度。
+- `MagpieUITests`：对着一个网关走一遍所有页面，切图表的时间范围、图形和维度，把请求筛成只看失败。
 - `Config/Local.xcconfig.example`：被 Git 忽略的个人设置文件的模板。
 - `scripts/demo_gateway.py`：演示网关。

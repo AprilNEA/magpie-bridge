@@ -78,12 +78,21 @@ import Testing
         #expect(ledger.totals.calls == 4)
         #expect(ledger.totals.errors == 4)
 
+        // 筛选菜单用的列表：受限密钥只看到自己用过的 Agent 和提供方。
+        #expect(ledger.agents.map(\.name) == ["Claude Code", "Codex"])
+        #expect(ledger.providers.map(\.id) == ["deepseek"])
+
         let rejected = ledger.rows[0]
         #expect(rejected.status == 404)
         #expect(rejected.error == "unknown model")
         #expect(rejected.agent == "curl")
         #expect(rejected.failed)
+        #expect(rejected.rejected)
+        #expect(rejected.isRejected)
+        #expect(!rejected.handedOn)
         #expect(!rejected.canceled)
+        #expect(rejected.errorType == nil)
+        #expect(rejected.host == nil)
         #expect(rejected.displayModel == "openai/gpt-5")
 
         let upstream = ledger.rows[1]
@@ -95,6 +104,39 @@ import Testing
         #expect(upstream.millis == 267)
         #expect(!upstream.priced)
         #expect(upstream.failed)
+        #expect(!upstream.rejected)
+        #expect(!upstream.isRejected)
+        #expect(upstream.errorType == "authentication_error")
+        #expect(upstream.host == "api.deepseek.com")
+        #expect(upstream.upBytes == 120)
+        #expect(upstream.downBytes == 204)
+        // 只试了一次时网关不写 tries。
+        #expect(upstream.tries == 0)
+    }
+
+    /// 老账本里被拒绝的行没有 rejected 标记：没发给提供方就回了 4xx 的也算网关拒绝（usage.Record.IsRejected）。
+    /// 失败后被转给下一次尝试的那一行算失败但不是拒绝；接手的那一次带 tries。
+    @Test func rowTellsLegacyRejectionsAndHandedOnTries() throws {
+        let json = #"""
+            [{"t":"2026-11-08T08:21:57Z","status":404,"err":"unknown model"},
+             {"t":"2026-11-08T08:21:58Z","provider":"deepseek","status":529,"handed_on":true},
+             {"t":"2026-11-08T08:21:59Z","provider":"deepseek","status":200,"tries":2}]
+            """#
+        let rows = try MagpieJSON.decoder().decode([RequestRow].self, from: Data(json.utf8))
+        #expect(!rows[0].rejected)
+        #expect(rows[0].isRejected)
+        #expect(rows[1].handedOn)
+        #expect(rows[1].failed)
+        #expect(!rows[1].isRejected)
+        #expect(rows[2].tries == 2)
+        #expect(!rows[2].failed)
+        #expect(!rows[2].handedOn)
+    }
+
+    @Test func namedFallsBackToItsID() throws {
+        let json = #"[{"id":"curl"},{"id":"codex","name":"Codex"},{"id":"x","name":""}]"#
+        let named = try JSONDecoder().decode([Named].self, from: Data(json.utf8))
+        #expect(named.map(\.name) == ["curl", "Codex", "x"])
     }
 
     /// 30 天的时间轴按天切成 30 个桶，只有最后一天有调用；by 里是整个时段的份额。

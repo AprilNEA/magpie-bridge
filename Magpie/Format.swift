@@ -23,4 +23,9 @@ nonisolated enum Format {
     static func duration(ms: Int64) -> String {
         ms < 1000 ? "\(ms) ms" : String(format: "%.1f s", Double(ms) / 1000)
     }
+
+    /// 394 B、1.2 KB 这样的字节数。
+    static func bytes(_ count: Int64) -> String {
+        count.formatted(.byteCount(style: .file))
+    }
 }

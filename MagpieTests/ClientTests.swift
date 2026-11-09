@@ -31,6 +31,40 @@ import Testing
         #expect(query == ["period": "7d", "offset": "100", "limit": "50"])
     }
 
+    /// 筛选条件只在设了的时候才上查询串，搜索词两头的空白不算；没设的不带，网关才按默认处理。
+    @Test func requestsPageCarriesOnlyTheFiltersSet() async throws {
+        let transport = try FakeTransport(.init(200, fixture("requests")))
+        let client = MagpieClient(baseURL: base, key: "k", transport: transport)
+        var filter = RequestFilter()
+        filter.failed = true
+        filter.model = "deepseek-v4-flash"
+        filter.query = "  codex "
+        _ = try await client.requests(period: .today, filter: filter)
+
+        let url = try #require(await transport.requests.first?.url)
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let query = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
+        #expect(
+            query == [
+                "period": "today", "offset": "0", "limit": "100",
+                "failed": "1", "model": "deepseek-v4-flash", "q": "codex",
+            ])
+    }
+
+    @Test func requestFilterTracksWhatIsSet() {
+        var filter = RequestFilter()
+        #expect(filter.isEmpty)
+        filter.query = "   "
+        #expect(filter.isEmpty)
+        #expect(filter.queryItems.isEmpty)
+        filter.agent = "codex"
+        filter.failed = true
+        #expect(filter.activeFields == [.failed, .agent])
+        filter.clear(.failed)
+        #expect(filter.activeFields == [.agent])
+        #expect(filter.queryItems == [URLQueryItem(name: "agent", value: "codex")])
+    }
+
     @Test func limitDecodesHeldTo() async throws {
         let transport = try FakeTransport(.init(200, fixture("limit")))
         let client = MagpieClient(baseURL: base, key: "k", transport: transport)

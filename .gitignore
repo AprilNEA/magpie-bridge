@@ -6,3 +6,5 @@ xcuserdata/
 *.xcuserstate
 Config/Local.xcconfig
 Magpie.xcodeproj/
+__pycache__/
+.amp/portals/

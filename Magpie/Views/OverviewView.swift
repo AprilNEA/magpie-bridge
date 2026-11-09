@@ -26,6 +26,7 @@ struct OverviewView: View {
                 usage(info)
                 trend
                 breakdown
+                topModels(info)
                 if info.readOnly {
                     Section {
                         Text("这个密钥只能查看用量，不能调用模型。")
@@ -168,6 +169,19 @@ struct OverviewView: View {
         }
     }
 
+    /// 网页 /me 的「最近 30 天最常用」：/me 里按调用次数排好的模型，最多 8 个，和上面的时段无关。
+    private func topModels(_ info: KeyInfo) -> some View {
+        Section("最近 30 天最常用") {
+            if info.topModels.isEmpty {
+                Text("还没有用量。").foregroundStyle(.secondary)
+            } else {
+                ForEach(info.topModels) { model in
+                    TopModelRow(model: model)
+                }
+            }
+        }
+    }
+
     /// 图表所在的那一行：有数据画图，没拿到数据转圈或报错。
     @ViewBuilder
     private func chartBody<Content: View>(
@@ -219,6 +233,43 @@ struct OverviewView: View {
         } catch {
             ledgerError = error.localizedDescription
         }
+    }
+}
+
+/// 常用模型的一行：模型 id，右边是 tokens，下面是次数、失败数和费用。
+private struct TopModelRow: View {
+    let model: TopModel
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(model.id)
+                .font(.callout.monospaced())
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(Format.tokens(model.totals.tokens)) tokens")
+                    .font(.footnote)
+                    .monospacedDigit()
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("overview.top")
+    }
+
+    private var detail: String {
+        var parts = ["\(Format.count(model.totals.calls)) 次"]
+        if model.totals.errors > 0 {
+            parts.append("\(Format.count(model.totals.errors)) 次失败")
+        }
+        if model.totals.cost > 0 {
+            parts.append("约 \(Format.usd(model.totals.cost))")
+        }
+        return parts.joined(separator: " · ")
     }
 }
 

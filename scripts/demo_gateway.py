@@ -7,7 +7,8 @@
     python3 scripts/demo_gateway.py --port 3427 --key sk-magpie-key-demo
 
 端点：/v1/magpie/me、/v1/magpie/limit、/v1/magpie/usage/requests?period=&offset=&limit=。
-密钥不对回 401，格式和真网关一样。
+请求记录还认 failed=1、model=、agent=、provider=、q= 这几个筛选，和真网关一样在服务器上筛，
+合计、时间轴和份额都跟着筛。密钥不对回 401，格式和真网关一样。
 """
 
 import argparse
@@ -32,12 +33,16 @@ MODELS = [
     ("deepseek-v4-pro", "DeepSeek V4 Pro", "deepseek", "claude", (0.5, 1.5, 0.05, 0), 0.10),
     ("claude-haiku-4-5", "Claude Haiku 4.5", "anthropic", "claude", (1, 5, 0.1, 1.25), 0.05),
 ]
+PRICES = {m[0]: m[4] for m in MODELS}
 PROVIDERS = {
     "anthropic": ("Anthropic", "anthropic-color"),
     "openai": ("OpenAI", "openai-color"),
     "deepseek": ("DeepSeek", "deepseek-color"),
 }
+HOSTS = {"anthropic": "api.anthropic.com", "openai": "api.openai.com", "deepseek": "api.deepseek.com"}
 AGENTS = {"claude": ("Claude Code", "claudecode-color"), "codex": ("Codex", "codex-color")}
+# 网关自己拒绝的请求要的模型：这把密钥不能用的。
+UNKNOWN_MODELS = ["openai/gpt-5", "anthropic/claude-3-opus", "deepseek/deepseek-r1"]
 # 一天里每个小时的活跃程度：上午、下午、晚上三个高峰。
 HOUR_WEIGHTS = [1, 0.5, 0.3, 0.2, 0.2, 0.4, 1, 2, 4, 6, 7, 6, 4, 5, 7, 8, 7, 6, 4, 4, 5, 6, 4, 2]
 ERRORS = [
@@ -77,30 +82,41 @@ def make_rows(now):
             t = day + timedelta(hours=hour, minutes=rng.randint(0, 59), seconds=rng.randint(0, 59))
             if t >= now:
                 continue
-            rows.append(make_row(rng, t))
+            rows.extend(make_call(rng, t))
     rows.sort(key=lambda r: r["t"], reverse=True)
     return rows
 
 
+def make_call(rng, t):
+    """一次请求留下的行：通常一行；偶尔先失败一次再换一次重试成功（两行），或被网关拒绝。"""
+    roll = rng.random()
+    if roll < 0.005:
+        return [reject(rng, t)]
+    row = make_row(rng, t)
+    if roll < 0.035 and row["status"] == 200:
+        row["tries"] = 2
+        return [handed_on_try(rng, row, t - timedelta(seconds=rng.uniform(0.8, 3))), row]
+    return [row]
+
+
 def make_row(rng, t):
-    model_id, model_name, provider, agent, prices, _ = rng.choices(MODELS, [m[5] for m in MODELS])[0]
+    model_id, model_name, provider, agent, _, _ = rng.choices(MODELS, [m[5] for m in MODELS])[0]
     inp = int(rng.lognormvariate(8.6, 0.7))
     cache_read = int(rng.lognormvariate(10.2, 0.9)) if rng.random() < 0.7 else 0
     cache_write = int(rng.lognormvariate(7.5, 0.8)) if rng.random() < 0.5 else 0
     out = int(rng.lognormvariate(6.6, 0.8))
     reasoning = int(out * rng.uniform(0.3, 1.2)) if agent == "codex" else 0
-    status, err, err_type, canceled = 200, None, None, False
+    status, err, err_type, canceled, tries = 200, None, None, False, 0
     roll = rng.random()
     if roll < 0.04:
         status, err_type, message = rng.choice(ERRORS)
         err = f"{PROVIDERS[provider][0]}: {message}"
-        inp, cache_read, cache_write, out, reasoning = inp, 0, 0, 0, 0
+        cache_read, cache_write, out, reasoning = 0, 0, 0, 0
+        # 有的错误是换了一家还不行才回给 Agent 的。
+        tries = 2 if rng.random() < 0.4 else 0
     elif roll < 0.055:
         status, err, canceled = 499, "context canceled", True
         out, reasoning = out // 4, 0
-    cost = (
-        inp * prices[0] + out * prices[1] + cache_read * prices[2] + cache_write * prices[3]
-    ) / 1_000_000
     row = {
         "t": rfc3339(t),
         "agent": agent,
@@ -116,8 +132,10 @@ def make_row(rng, t):
         "ms": int(600 + out * rng.uniform(12, 30) + rng.uniform(0, 1500)),
         "status": status,
         "ep": "/v1/responses" if agent == "codex" else "/v1/messages",
-        "cost": round(cost, 6),
         "priced": True,
+        "host": HOSTS[provider],
+        "up_bytes": int(inp * rng.uniform(3.8, 4.6)) + 700,
+        "down_bytes": int(out * rng.uniform(9, 14)) + 300 if out else rng.randint(150, 400),
         "agentName": AGENTS[agent][0],
         "icon": AGENTS[agent][1],
         "providerName": PROVIDERS[provider][0],
@@ -125,23 +143,99 @@ def make_row(rng, t):
         "_time": t,
         "_model_name": model_name,
     }
+    row["cost"] = cost_of(row)
     if err:
         row["err"] = err
     if err_type:
         row["err_type"] = err_type
     if canceled:
         row["canceled"] = True
+    if tries:
+        row["tries"] = tries
     return row
 
 
+def handed_on_try(rng, row, t):
+    """row 之前失败、被网关转给下一次尝试的那一行：只有输入，没有输出，不算一次调用。"""
+    status, err_type, message = rng.choice(ERRORS)
+    first = {k: v for k, v in row.items() if k != "tries"}
+    first.update(
+        {
+            "t": rfc3339(t),
+            "_time": t,
+            "out": 0,
+            "cache_read": 0,
+            "cache_write": 0,
+            "reasoning": 0,
+            "ms": int(rng.uniform(300, 2500)),
+            "status": status,
+            "err": f"{row['providerName']}: {message}",
+            "err_type": err_type,
+            "handed_on": True,
+            "down_bytes": rng.randint(150, 400),
+        }
+    )
+    first["cost"] = cost_of(first)
+    return first
+
+
+def reject(rng, t):
+    """网关自己拒绝的请求：要的模型这把密钥没有，没发给任何提供方，不算一次调用。"""
+    agent = rng.choice(list(AGENTS))
+    return {
+        "t": rfc3339(t),
+        "agent": agent,
+        "provider": "",
+        "callerKeyName": KEY_NAME,
+        "model": "",
+        "req": rng.choice(UNKNOWN_MODELS),
+        "in": 0,
+        "out": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "reasoning": 0,
+        "ms": rng.randint(1, 4),
+        "status": 404,
+        "err": "unknown model",
+        "rejected": True,
+        "ep": "/v1/responses" if agent == "codex" else "/v1/messages",
+        "cost": 0,
+        "priced": False,
+        "agentName": AGENTS[agent][0],
+        "icon": AGENTS[agent][1],
+        "providerName": "",
+        "access": "api",
+        "_time": t,
+        "_model_name": "",
+    }
+
+
+def cost_of(row):
+    p = PRICES[row["model"]]
+    cost = row["in"] * p[0] + row["out"] * p[1] + row["cache_read"] * p[2] + row["cache_write"] * p[3]
+    return round(cost / 1_000_000, 6)
+
+
 def failed(row):
+    """usage.Record.Failed：回了错误或记了错误，且不是 Agent 自己取消。"""
     return (row["status"] >= 400 or bool(row.get("err"))) and not row.get("canceled")
 
 
+def lost(row):
+    """usage.Record.LostRequest：Agent 真的收到了错误的请求，failed=1 筛的就是它。"""
+    return failed(row) and not row.get("handed_on")
+
+
+def counted(rows):
+    """算作一次调用的行：被网关拒绝的和转给下一次尝试的不算，tokens 和费用照加。"""
+    return [r for r in rows if not r.get("rejected") and not r.get("handed_on")]
+
+
 def totals(rows):
-    t = {
-        "calls": len(rows),
-        "errors": sum(1 for r in rows if failed(r)),
+    calls = counted(rows)
+    return {
+        "calls": len(calls),
+        "errors": sum(1 for r in calls if failed(r)),
         "input": sum(r["in"] for r in rows),
         "output": sum(r["out"] for r in rows),
         "cache_read": sum(r["cache_read"] for r in rows),
@@ -149,16 +243,37 @@ def totals(rows):
         "reasoning": sum(r["reasoning"] for r in rows),
         "cost": round(sum(r["cost"] for r in rows), 4),
         "unpriced": 0,
+        "up_bytes": sum(r.get("up_bytes", 0) for r in rows),
+        "down_bytes": sum(r.get("down_bytes", 0) for r in rows),
     }
-    return t
 
 
 def part(rows):
     return {
-        "calls": len(rows),
+        "calls": len(counted(rows)),
         "tokens": sum(r["in"] + r["out"] + r["cache_read"] + r["cache_write"] for r in rows),
         "cost": round(sum(r["cost"] for r in rows), 4),
     }
+
+
+def keeps(row, filt):
+    """usage.Filter.keepsRecord 里一把密钥用得上的几项；q 在模型、提供方、主机和密钥名里找。"""
+    if filt.get("failed") and not lost(row):
+        return False
+    for field in ("model", "agent", "provider"):
+        if filt.get(field) and row[field] != filt[field]:
+            return False
+    q = filt.get("q", "").lower()
+    if q and not any(q in str(row.get(k) or "").lower() for k in ("req", "model", "provider", "host", "callerKeyName")):
+        return False
+    return True
+
+
+def apply(rows, filt, skip=None):
+    """筛过的行；skip 是不参与的那一项，by[skip] 用，这样选了一个模型，其他模型还在下拉里。"""
+    if skip:
+        filt = {k: v for k, v in filt.items() if k != skip}
+    return [r for r in rows if keeps(r, filt)]
 
 
 def key_of(row, dimension):
@@ -177,8 +292,11 @@ DIMENSIONS = ["agent", "callerKey", "model", "modelAt", "provider"]
 
 
 def breakdown(rows, dimension):
+    """按维度分的份额；被网关拒绝的行没有模型和提供方，不在任何一份里。"""
     groups = {}
     for r in rows:
+        if r.get("rejected"):
+            continue
         key, name, icon = key_of(r, dimension)
         groups.setdefault(key, (name, icon, []))[2].append(r)
     out = []
@@ -230,8 +348,15 @@ def series(rows, bucket, starts):
 def group_by(rows, dimension):
     groups = {}
     for r in rows:
+        if r.get("rejected"):
+            continue
         groups.setdefault(key_of(r, dimension)[0], []).append(r)
     return groups
+
+
+def named(table, ids):
+    """筛选菜单用的 Agent 或提供方列表，只有这个时间窗口里出现过的。"""
+    return [{"id": k, "name": v[0], "icon": v[1]} for k, v in table.items() if k in ids]
 
 
 def public(row):
@@ -252,9 +377,12 @@ class Demo:
         offset = max(0, int(query.get("offset", ["0"])[0] or 0))
         limit = int(query.get("limit", ["100"])[0] or 100)
         limit = 100 if limit <= 0 else min(limit, 500)
-        rows = self.rows(now)
+        filt = {k: query[k][0] for k in ("model", "agent", "provider", "q") if query.get(k, [""])[0]}
+        if query.get("failed", [""])[0] in ("1", "true"):
+            filt["failed"] = True
         since, bucket, starts = timeline(period, now)
-        rows = [r for r in rows if r["_time"] >= since]
+        window = [r for r in self.rows(now) if r["_time"] >= since]
+        rows = apply(window, filt)
         page = rows[offset : offset + limit]
         return {
             "callerKeys": [{"id": KEY_NAME, **totals(rows), "name": KEY_NAME, "icon": "generic"}],
@@ -264,13 +392,13 @@ class Demo:
             "total": len(rows),
             "bucket": bucket,
             "series": series(rows, bucket, starts),
-            "by": {d: breakdown(rows, d) for d in DIMENSIONS},
+            "by": {d: breakdown(apply(window, filt, skip=d), d) for d in DIMENSIONS},
             **totals(rows),
             "through": totals(rows),
             "direct": totals([]),
             "reported": totals([]),
-            "agents": [{"id": k, "name": v[0], "icon": v[1]} for k, v in AGENTS.items()],
-            "providers": [{"id": k, "name": v[0], "icon": v[1]} for k, v in PROVIDERS.items()],
+            "agents": named(AGENTS, {r["agent"] for r in window}),
+            "providers": named(PROVIDERS, {r["provider"] for r in window}),
             "purposes": [],
             "accounts": [],
         }
