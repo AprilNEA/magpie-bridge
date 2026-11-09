@@ -1,8 +1,8 @@
-# Magpie for Apple platforms
+# 鹊桥
 
 [English](README.md) · 简体中文
 
-[magpie](https://github.com/badlogic/magpie) 网关 `/me` 页面的原生客户端，目前是 iOS 版：拿到一把网关密钥的人，在手机上看自己的额度、用量、调用记录和可用的模型，并把 Claude Code、Codex 或任何 OpenAI 兼容工具的配置复制走。
+鹊桥（Queqiao）是 [magpie](https://github.com/badlogic/magpie) 网关 `/me` 页面的原生客户端，目前是 iOS 版：拿到一把网关密钥的人，在手机上看自己的额度、用量、调用记录和可用的模型，并把 Claude Code、Codex 或任何 OpenAI 兼容工具的配置复制走。
 
 只调用密钥自己能访问的 `/v1/magpie/me`、`/v1/magpie/limit` 和 `/v1/magpie/usage/requests`，不需要改网关，也不需要管理员密钥。
 
@@ -42,7 +42,7 @@ make ui-test MAGPIE_TEST_GATEWAY_URL=http://localhost:3425 \
 
 连本机开发用的网关（`http://localhost:3425`）已通过 `NSAllowsLocalNetworking` 放行。
 
-目录：
+目录（Xcode target 和 Swift 模块仍叫 `Magpie`，产品名是鹊桥）：
 
 - `Magpie/Model`：网关 JSON 的模型，缺省字段都有默认值；`UsageSeries.swift` 是 `/usage/requests` 里的时间轴和份额。
 - `Magpie/Charts`：Swift Charts 画的趋势图（柱状 / 面积）、构成环形图、额度环，以及把账本整理成图表数据的 `ChartData`。

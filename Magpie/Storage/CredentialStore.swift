@@ -3,7 +3,7 @@ import Security
 
 /// 网关地址放在 UserDefaults，密钥放在钥匙串，按网关地址区分。
 struct CredentialStore {
-    static let service = "com.aprilnea.magpie.gateway-key"
+    static let service = "com.aprilnea.queqiao.gateway-key"
     /// 最近一次用的网关地址。启动参数 -gatewayAddress 也能给出（UI 测试用）。
     static let addressKey = "gatewayAddress"
 

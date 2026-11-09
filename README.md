@@ -1,8 +1,8 @@
-# Magpie for Apple platforms
+# Queqiao
 
 English · [简体中文](README.zh-CN.md)
 
-The [magpie](https://github.com/badlogic/magpie) gateway's `/me` page as a native app for Apple platforms, iOS today. Anyone holding a gateway key can check their limits, usage, request history, and available models on their phone, and copy the configuration for Claude Code, Codex, or any OpenAI-compatible tool.
+Queqiao (鹊桥, the bridge of magpies) brings the [magpie](https://github.com/badlogic/magpie) gateway's `/me` page to Apple platforms as a native app, iOS today. Anyone holding a gateway key can check their limits, usage, request history, and available models on their phone, and copy the configuration for Claude Code, Codex, or any OpenAI-compatible tool.
 
 The app calls only the endpoints a key can reach on its own: `/v1/magpie/me`, `/v1/magpie/limit`, and `/v1/magpie/usage/requests`. No gateway changes and no admin key needed. The UI is Chinese only for now.
 
@@ -42,7 +42,7 @@ Without a gateway that has enough data, `make demo-gateway` starts a demo gatewa
 
 Connecting to a local development gateway (`http://localhost:3425`) is allowed through `NSAllowsLocalNetworking`.
 
-Layout:
+Layout (`Magpie` is the Xcode target and Swift module; the product is Queqiao):
 
 - `Magpie/Model`: models for the gateway JSON; every optional field has a default. `UsageSeries.swift` holds the time series and shares from `/usage/requests`.
 - `Magpie/Charts`: the Swift Charts views (trend bars / area, share donut, limit rings) and `ChartData`, which shapes a ledger into chart data.

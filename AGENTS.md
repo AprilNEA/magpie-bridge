@@ -1,6 +1,11 @@
-# Magpie for Apple platforms
+# Queqiao (鹊桥) for Apple platforms
 
 SwiftUI client for the magpie gateway `/me` page. `README.md` describes usage and the layout.
+
+## Names
+
+- The app is Queqiao in English text and 鹊桥 in UI text and Chinese text. Lowercase `magpie` is the gateway.
+- `Magpie` is the Xcode project, target, and Swift module name. Do not rename them without an instruction from the user.
 
 ## Build and test
 

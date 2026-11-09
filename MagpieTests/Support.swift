@@ -75,7 +75,7 @@ final class MemoryKeychain: KeychainItems {
 }
 
 func scratchDefaults() throws -> UserDefaults {
-    let name = "com.aprilnea.magpie.tests.\(UUID().uuidString)"
+    let name = "com.aprilnea.queqiao.tests.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: name))
     defaults.removePersistentDomain(forName: name)
     return defaults
