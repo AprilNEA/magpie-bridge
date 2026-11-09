@@ -51,6 +51,7 @@ make ui-test MAGPIE_TEST_GATEWAY_URL=http://localhost:3425 \
 - `Magpie/Session.swift`：登录状态和 `/me` 的最新结果。
 - `Magpie/SetupSnippet.swift`：和网页 `/me` 一样的配置片段。
 - `Magpie/Views`：登录、概览、请求、配置、设置。
+- `Magpie/AppIcon.icon`：Icon Composer 格式的应用图标，`Assets/` 里是平面的 SVG 图层，`icon.json` 里是背景、玻璃效果和各外观的填充色。Xcode 从它渲染所有尺寸和外观（默认、深色、透明、着色）。用 Xcode 26 自带的 Icon Composer 编辑。
 - `MagpieTests`：解码、图表数据、客户端、片段、钥匙串和登录流程的单元测试，`Fixtures` 里是本机开发网关的响应。
 - `MagpieUITests`：对着一个网关走一遍所有页面，切图表的时间范围、图形和维度。
 - `Config/Local.xcconfig.example`：被 Git 忽略的个人设置文件的模板。

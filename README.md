@@ -51,6 +51,7 @@ Layout (`Magpie` is the Xcode target and Swift module; the product is Queqiao):
 - `Magpie/Session.swift`: sign-in state and the latest `/me` result.
 - `Magpie/SetupSnippet.swift`: the same configuration snippets as the web `/me` page.
 - `Magpie/Views`: sign-in, overview, requests, setup, settings.
+- `Magpie/AppIcon.icon`: the app icon as an Icon Composer document: flat SVG layers in `Assets/` and the background, glass, and per-appearance fills in `icon.json`. Xcode renders every size and appearance (default, dark, clear, tinted) from it. Edit it in Icon Composer, which ships with Xcode 26.
 - `MagpieTests`: unit tests for decoding, chart data, the client, snippets, the keychain, and the sign-in flow; `Fixtures` holds responses from a local development gateway.
 - `MagpieUITests`: walks every page against a gateway and switches the chart range, style, and dimension.
 - `Config/Local.xcconfig.example`: template for the ignored per-developer settings.

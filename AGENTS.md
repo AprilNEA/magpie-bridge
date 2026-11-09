@@ -13,6 +13,7 @@ SwiftUI client for the magpie gateway `/me` page. `README.md` describes usage an
 - Run `make lint` and `make test` before you commit. `make check` runs lint, build, and test.
 - UI tests need a gateway: `make ui-test MAGPIE_TEST_GATEWAY_URL=... MAGPIE_TEST_GATEWAY_KEY=...`. Use `make demo-gateway` (key `sk-magpie-key-demo`) for populated charts.
 - `.github/workflows/ci.yml` runs `make lint`, `make build`, and `make test` on a GitHub-hosted macOS runner for every push to `master` and every pull request. The workflow selects the Xcode version from `options.xcodeVersion` in `project.yml`; to change the version, edit `project.yml`, not the workflow.
+- `Magpie/AppIcon.icon` is the app icon as an Icon Composer document; Xcode renders every size and appearance from it, so the project has no `AppIcon.appiconset`. Keep the layers in `Assets/` flat vector shapes without baked shadows or gradients, and keep `icon.json` to keys that the Icon Composer in the Xcode version pinned in `project.yml` accepts; a `make build` with `DEVELOPER_DIR` pointed at that Xcode checks it.
 
 ## Privacy
 
