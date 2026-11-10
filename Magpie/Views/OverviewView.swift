@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// The top half of the web /me page plus charts: limit gauges, usage numbers, the trend over time,
-/// and the breakdown by model, Agent, or provider.
+/// The top half of the web /me page plus charts: limit gauges, usage numbers, a year of days as a
+/// heatmap, the trend over time, and the breakdown by model, Agent, or provider.
 struct OverviewView: View {
     let session: Session
 
     @State private var period = UsagePeriod.week
+    /// What every chart on the page measures.
     @State private var metric = UsageMetric.tokens
     @State private var style = TrendChart.Style.bars
     @State private var dimension = Dimension.model
@@ -16,7 +17,10 @@ struct OverviewView: View {
     /// and shares).
     @State private var ledger: RequestLedger?
     @State private var ledgerError: String?
-    @State private var loadingLedger = false
+    /// Data for the heatmap: fetched when the page first appears and on every refresh, not when
+    /// the period changes.
+    @State private var heatmap: Heatmap?
+    @State private var heatmapError: String?
 
     var body: some View {
         List {
@@ -29,6 +33,7 @@ struct OverviewView: View {
                 }
                 limits(info)
                 usage(info)
+                year
                 trend
                 breakdown
                 topModels(info)
@@ -60,6 +65,11 @@ struct OverviewView: View {
             RequestsView(session: session, filter: RequestFilter(model: model.id), period: .month)
         }
         .task(id: period) { await loadLedger() }
+        .task {
+            if heatmap == nil {
+                await loadHeatmap()
+            }
+        }
         .refreshable { await refresh() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -107,6 +117,30 @@ struct OverviewView: View {
         }
     }
 
+    /// The web dashboard's heatmap: the last 53 weeks a day each, whatever period is chosen below.
+    private var year: some View {
+        Section {
+            chartBody(heatmap, error: heatmapError, identifier: "overview.year") { heatmap in
+                if heatmap.hasCalls {
+                    HeatmapChart(heatmap: heatmap, metric: metric)
+                } else {
+                    Text("过去一年还没有调用。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                }
+            }
+        } header: {
+            HStack {
+                Text("过去一年")
+                Spacer()
+                metricPicker(identifier: "overview.heatmap.metric")
+            }
+        } footer: {
+            Text("一格是一天，颜色越深用得越多；一天从网关所在时区的零点算起。")
+        }
+    }
+
     private var trend: some View {
         Section {
             Picker("时间范围", selection: $period) {
@@ -117,7 +151,7 @@ struct OverviewView: View {
             .pickerStyle(.segmented)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
-            chartBody(identifier: "overview.trend") { ledger in
+            chartBody(ledger, error: ledgerError, identifier: "overview.trend") { ledger in
                 TrendChart(ledger: ledger, dimension: dimension, metric: metric, style: style)
             }
         } header: {
@@ -134,15 +168,7 @@ struct OverviewView: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .accessibilityIdentifier("overview.style")
-                Picker("指标", selection: $metric) {
-                    ForEach(UsageMetric.allCases) { metric in
-                        Text(metric.title).tag(metric)
-                    }
-                }
-                .pickerStyle(.menu)
-                .textCase(nil)
-                .font(.footnote)
-                .accessibilityIdentifier("overview.metric")
+                metricPicker(identifier: "overview.metric")
             }
         } footer: {
             if let ledger {
@@ -162,7 +188,7 @@ struct OverviewView: View {
             .pickerStyle(.segmented)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
-            chartBody(identifier: "overview.share") { ledger in
+            chartBody(ledger, error: ledgerError, identifier: "overview.share") { ledger in
                 let slices = ChartData.slices(in: ledger, by: dimension, metric: metric)
                 let names = slices.map(\.name)
                 if slices.isEmpty {
@@ -213,21 +239,36 @@ struct OverviewView: View {
         }
     }
 
-    /// The row holding a chart: draws it when there is data, otherwise a spinner or an error.
-    @ViewBuilder
-    private func chartBody<Content: View>(
-        identifier: String, @ViewBuilder content: (RequestLedger) -> Content
+    /// The menu choosing what the charts measure. The trend and the heatmap each carry one in
+    /// their header, both setting the same metric.
+    private func metricPicker(identifier: String) -> some View {
+        Picker("指标", selection: $metric) {
+            ForEach(UsageMetric.allCases) { metric in
+                Text(metric.title).tag(metric)
+            }
+        }
+        .pickerStyle(.menu)
+        .textCase(nil)
+        .font(.footnote)
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// The row holding a chart: draws it once its data is here, otherwise the error that kept the
+    /// data away, or a spinner while neither has arrived.
+    private func chartBody<Value, Content: View>(
+        _ value: Value?, error: String?, identifier: String,
+        @ViewBuilder content: (Value) -> Content
     ) -> some View {
         VStack(alignment: .leading) {
-            if let ledger {
-                content(ledger)
-            } else if loadingLedger {
-                ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 120)
-            } else if let ledgerError {
-                Label(ledgerError, systemImage: "exclamationmark.triangle")
+            if let value {
+                content(value)
+            } else if let error {
+                Label(error, systemImage: "exclamationmark.triangle")
                     .font(.footnote)
                     .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            } else {
+                ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 120)
             }
         }
@@ -251,18 +292,28 @@ struct OverviewView: View {
 
     private func refresh() async {
         await session.refresh()
-        await loadLedger()
+        async let ledgerLoaded: Void = loadLedger()
+        await loadHeatmap()
+        await ledgerLoaded
     }
 
     private func loadLedger() async {
         guard let client = session.client else { return }
-        loadingLedger = true
-        defer { loadingLedger = false }
+        ledgerError = nil
         do {
             ledger = try await client.requests(period: period, limit: 1)
-            ledgerError = nil
         } catch {
             ledgerError = error.localizedDescription
+        }
+    }
+
+    private func loadHeatmap() async {
+        guard let client = session.client else { return }
+        heatmapError = nil
+        do {
+            heatmap = try await client.heatmap()
+        } catch {
+            heatmapError = error.localizedDescription
         }
     }
 }

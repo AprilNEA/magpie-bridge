@@ -81,10 +81,55 @@ nonisolated struct MagpieClient: Sendable {
         period: UsagePeriod, filter: RequestFilter = RequestFilter(), offset: Int = 0,
         limit: Int = 100
     ) async throws(MagpieError) -> RequestLedger {
+        try await requests(period: period.rawValue, filter: filter, offset: offset, limit: limit)
+    }
+
+    /// The same page over days the reader picked. The gateway reads the dates in its own time zone
+    /// and cuts 2 to 60 days into one point per day; a gateway too old to know picked ranges
+    /// answers for 30 days instead.
+    func requests(
+        days: DayRange, filter: RequestFilter = RequestFilter(), offset: Int = 0, limit: Int = 100
+    ) async throws(MagpieError) -> RequestLedger {
+        try await requests(period: days.query, filter: filter, offset: offset, limit: limit)
+    }
+
+    /// The last 53 weeks a day each: the ranges Heatmap cuts the span into, fetched at once with
+    /// one row each, since only their series matter.
+    func heatmap(
+        through today: Date = .now, calendar: Calendar = .current
+    ) async throws(MagpieError) -> Heatmap {
+        typealias Fetched = Result<[SeriesPoint], MagpieError>
+        let ranges = Heatmap.ranges(through: today, calendar: calendar)
+        let fetched = await withTaskGroup(of: (Int, Fetched).self) { group in
+            for (index, range) in ranges.enumerated() {
+                group.addTask {
+                    do throws(MagpieError) {
+                        return (index, .success(try await requests(days: range, limit: 1).series))
+                    } catch {
+                        return (index, .failure(error))
+                    }
+                }
+            }
+            var out = Array(repeating: Fetched.success([]), count: ranges.count)
+            for await (index, result) in group {
+                out[index] = result
+            }
+            return out
+        }
+        var series: [[SeriesPoint]] = []
+        for result in fetched {
+            series.append(try result.get())
+        }
+        return try Heatmap(ranges: ranges, series: series, calendar: calendar)
+    }
+
+    private func requests(
+        period: String, filter: RequestFilter, offset: Int, limit: Int
+    ) async throws(MagpieError) -> RequestLedger {
         try await get(
             "v1/magpie/usage/requests",
             query: [
-                URLQueryItem(name: "period", value: period.rawValue),
+                URLQueryItem(name: "period", value: period),
                 URLQueryItem(name: "offset", value: String(offset)),
                 URLQueryItem(name: "limit", value: String(limit)),
             ] + filter.queryItems)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Demo gateway: returns fake usage for one key over the last 90 days in the format of the magpie gateway's
+"""Demo gateway: returns fake usage for one key over the last 53 weeks in the format of the magpie gateway's
 /v1/magpie/* endpoints.
 
 Lets the App run and show its charts without a real gateway; the UI tests and screenshots use it too. The data
@@ -8,12 +8,13 @@ comes from a fixed seed and is the same every run; only the time follows the pre
     python3 scripts/demo_gateway.py --port 3427 --key sk-magpie-key-demo
 
 Endpoints: /v1/magpie/me, /v1/magpie/limit, /v1/magpie/usage/requests?period=&offset=&limit=.
-The request ledger also accepts the filters failed=1, model=, agent=, provider=, and q=, filtering on the server
+period is today, 7d, 30d, all, or days picked as 2026-10-01..2026-10-07, read in UTC. The request ledger also accepts the filters failed=1, model=, agent=, provider=, and q=, filtering on the server
 like the real gateway does; totals, series, and shares follow the filter. A wrong key gets a 401 in the same
 format as the real gateway.
 """
 
 import argparse
+import functools
 import json
 import math
 import os
@@ -25,7 +26,12 @@ from urllib.parse import parse_qs, urlparse
 
 VERSION = "0.1.3314"
 KEY_NAME = "demo"
-DAYS = 90
+# As far back as the App's heatmap reaches: 53 weeks.
+DAYS = 371
+# Days back with no calls at all, so the heatmap has a gap to show.
+BREAK = range(150, 164)
+# How likely any other day is to have no calls, on a weekday and on a weekend.
+DAY_OFF = {True: 0.03, False: 0.3}
 
 # id, display name, provider, Agent, price per million tokens (input, output, cache read, cache write), selection weight
 MODELS = [
@@ -73,11 +79,13 @@ def day_start(t):
     return t.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def make_rows(now):
-    """Calls over the last DAYS days: more on weekdays, fewer on weekends, and more the closer to now."""
+@functools.lru_cache(maxsize=2)
+def make_rows(today):
+    """Calls over the DAYS days ending with the whole of today, newest first: more on weekdays, fewer on weekends,
+    more the closer to today, and none on some days. The seed and today decide them all, so a day's rows are made
+    once and shared by every request; nothing may change them."""
     rng = random.Random(7)
     rows = []
-    today = day_start(now)
     for back in range(DAYS):
         day = today - timedelta(days=back)
         weekday = day.weekday() < 5
@@ -85,12 +93,12 @@ def make_rows(now):
         count = int((70 if weekday else 22) * trend * rng.uniform(0.7, 1.3))
         if back == 0:
             count = int(70 * TODAY_BOOST)
+        elif back in BREAK or rng.random() < DAY_OFF[weekday]:
+            count = 0
         hours = list(range(24))
         for _ in range(count):
             hour = rng.choices(hours, HOUR_WEIGHTS)[0]
             t = day + timedelta(hours=hour, minutes=rng.randint(0, 59), seconds=rng.randint(0, 59))
-            if t >= now:
-                continue
             rows.extend(make_call(rng, t))
     rows.sort(key=lambda r: r["t"], reverse=True)
     return rows
@@ -323,21 +331,50 @@ def breakdown(rows, dimension):
     return out
 
 
+PRESETS = ("today", "7d", "30d", "all")
+
+
+def picked(period):
+    """The first and last day of a picked range such as 2026-10-01..2026-10-07 (usage.Period.days); None when
+    period is not one."""
+    first, sep, last = period.partition("..")
+    try:
+        a = datetime.strptime(first, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        b = datetime.strptime(last, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return (a, b) if sep and a <= b else None
+
+
 def timeline(period, now):
-    """The start of the period, the bucket size, and the start of each bucket."""
+    """The start of the period, its end (None for a preset, which runs up to now), the bucket size, and the start
+    of each bucket. A picked range gets what the real gateway gives it: hours for one day, a point per day up to
+    60 days, and weeks from a Monday past that."""
     today = day_start(now)
+    days = picked(period)
+    if days:
+        first, last = days
+        until = last + timedelta(days=1)
+        count = (last - first).days + 1
+        if count == 1:
+            return first, until, "hour", [first + timedelta(hours=h) for h in range(24)]
+        if count <= 60:
+            return first, until, "day", [first + timedelta(days=d) for d in range(count)]
+        monday = first - timedelta(days=first.weekday())
+        weeks = (last - monday).days // 7 + 1
+        return first, until, "week", [monday + timedelta(weeks=w) for w in range(weeks)]
     if period == "today":
-        return today, "hour", [today + timedelta(hours=h) for h in range(24)]
+        return today, None, "hour", [today + timedelta(hours=h) for h in range(24)]
     if period == "7d":
         since = today - timedelta(days=6)
-        return since, "day", [since + timedelta(days=d) for d in range(7)]
+        return since, None, "day", [since + timedelta(days=d) for d in range(7)]
     if period == "all":
         since = today - timedelta(days=DAYS - 1)
         since -= timedelta(days=since.weekday())
         weeks = math.ceil(((today - since).days + 1) / 7)
-        return since, "week", [since + timedelta(weeks=w) for w in range(weeks)]
+        return since, None, "week", [since + timedelta(weeks=w) for w in range(weeks)]
     since = today - timedelta(days=29)
-    return since, "day", [since + timedelta(days=d) for d in range(30)]
+    return since, None, "day", [since + timedelta(days=d) for d in range(30)]
 
 
 def label(bucket, t):
@@ -382,11 +419,12 @@ class Demo:
         self.key = key
 
     def rows(self, now):
-        return make_rows(now)
+        """Every call made so far, newest first."""
+        return [r for r in make_rows(day_start(now)) if r["_time"] < now]
 
     def ledger(self, query, now):
         period = query.get("period", ["30d"])[0]
-        if period not in ("today", "7d", "30d", "all"):
+        if period not in PRESETS and not picked(period):
             period = "30d"
         offset = max(0, int(query.get("offset", ["0"])[0] or 0))
         limit = int(query.get("limit", ["100"])[0] or 100)
@@ -394,8 +432,8 @@ class Demo:
         filt = {k: query[k][0] for k in ("model", "agent", "provider", "q") if query.get(k, [""])[0]}
         if query.get("failed", [""])[0] in ("1", "true"):
             filt["failed"] = True
-        since, bucket, starts = timeline(period, now)
-        window = [r for r in self.rows(now) if r["_time"] >= since]
+        since, until, bucket, starts = timeline(period, now)
+        window = [r for r in self.rows(now) if r["_time"] >= since and (until is None or r["_time"] < until)]
         rows = apply(window, filt)
         page = rows[offset : offset + limit]
         return {

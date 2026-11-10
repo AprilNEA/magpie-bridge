@@ -34,6 +34,6 @@ ui-test:
 
 check: lint build test
 
-# View the panes without a real gateway: starts a local demo gateway with 90 days of fake data, key sk-magpie-key-demo.
+# View the panes without a real gateway: starts a local demo gateway with 53 weeks of fake data, key sk-magpie-key-demo.
 demo-gateway:
 	python3 scripts/demo_gateway.py --port 3427

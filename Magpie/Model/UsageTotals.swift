@@ -36,6 +36,19 @@ nonisolated struct UsageTotals: Decodable, Hashable, Sendable {
 
     init() {}
 
+    /// Adds another set of calls to this one.
+    mutating func add(_ other: UsageTotals) {
+        calls += other.calls
+        errors += other.errors
+        input += other.input
+        output += other.output
+        cacheRead += other.cacheRead
+        cacheWrite += other.cacheWrite
+        reasoning += other.reasoning
+        cost += other.cost
+        unpriced += other.unpriced
+    }
+
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         calls = try container.decodeIfPresent(Int.self, forKey: .calls) ?? 0

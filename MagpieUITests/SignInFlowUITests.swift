@@ -1,9 +1,9 @@
 import XCTest
 
 /// Walks through the app against a gateway (a real one, or scripts/demo_gateway.py): a wrong key
-/// shows an error, the right key enters the four panes, the chart switches time range and
-/// dimension, requests are filtered to failed only, and forgetting the key returns to the input
-/// page. Needs MAGPIE_TEST_GATEWAY_URL and MAGPIE_TEST_GATEWAY_KEY; when MAGPIE_SCREENSHOT_DIR is
+/// shows an error, the right key enters the four panes, a day of the year heatmap is selected,
+/// the chart switches time range and dimension, requests are filtered to failed only, and
+/// forgetting the key returns to the input page. Needs MAGPIE_TEST_GATEWAY_URL and MAGPIE_TEST_GATEWAY_KEY; when MAGPIE_SCREENSHOT_DIR is
 /// given, a screenshot of every pane is saved there.
 final class SignInFlowUITests: XCTestCase {
     private let env = ProcessInfo.processInfo.environment
@@ -42,7 +42,6 @@ final class SignInFlowUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["额度"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["用量"].exists)
-        XCTAssertTrue(app.staticTexts["趋势"].exists)
         shot(app, "overview")
 
         // The three usage periods are tappable: tapping 7 days switches the section below to its
@@ -57,9 +56,41 @@ final class SignInFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["缓存命中"].exists, app.debugDescription)
         shot(app, "overview-usage-7d")
 
-        // The trend chart sits entirely below the tab bar and the list has not drawn it yet, so
-        // scroll up first; then tap a bar and the detail for that period floats up above it.
-        scroll(app, by: 0.5)
+        // Below usage is the year heatmap, resting on the newest weeks. The line under it tells
+        // the year's figures; tapping a day switches it to that day's, tapping again switches back.
+        bring(app, app.staticTexts["过去一年"], toTop: 0.2)
+        let heatmap = element(app, "overview.heatmap")
+        XCTAssertTrue(heatmap.waitForExistence(timeout: 20), app.debugDescription)
+        let yearFigures = element(app, "overview.heatmap.year")
+        XCTAssertTrue(yearFigures.waitForExistence(timeout: 5), app.debugDescription)
+        shot(app, "overview-heatmap")
+        if heatmap.exists {
+            let day = heatmap.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+            day.tap()
+            XCTAssertTrue(
+                element(app, "overview.heatmap.selected").waitForExistence(timeout: 5),
+                app.debugDescription)
+            shot(app, "overview-heatmap-selected")
+            day.tap()
+            XCTAssertTrue(yearFigures.waitForExistence(timeout: 5), app.debugDescription)
+        }
+
+        // The heatmap's own menu switches what it shades; switch back to tokens when done, since
+        // the charts below share the metric.
+        let heatmapMetric = element(app, "overview.heatmap.metric")
+        XCTAssertTrue(heatmapMetric.waitForExistence(timeout: 5), app.debugDescription)
+        if heatmapMetric.exists {
+            heatmapMetric.tap()
+            app.buttons["费用"].firstMatch.tap()
+            sleep(1)
+            shot(app, "overview-heatmap-cost")
+            heatmapMetric.tap()
+            app.buttons["Tokens"].firstMatch.tap()
+        }
+
+        // The trend chart comes next; put its header a little above the middle so the whole chart
+        // is on screen. Then tap a bar and the detail for that period floats up above it.
+        bring(app, app.staticTexts["趋势"], toTop: 0.43)
         let trend = element(app, "overview.trend")
         let trendShown = trend.waitForExistence(timeout: 20)
         XCTAssertTrue(trendShown, app.debugDescription)
@@ -269,12 +300,30 @@ final class SignInFlowUITests: XCTestCase {
         return XCTWaiter().wait(for: [gone], timeout: timeout) == .completed
     }
 
-    /// Drags up along the left margin, scrolling as far as the drag; the drag does not start on
-    /// the chart, so its selection gesture cannot take the touch over.
+    /// Scrolls the list until the element's top is at the given fraction of the screen height,
+    /// to within a few points. A row far below the screen does not exist yet, so the list is
+    /// scrolled up first until it does.
+    @MainActor
+    private func bring(_ app: XCUIApplication, _ element: XCUIElement, toTop fraction: CGFloat) {
+        for _ in 0..<4 where !element.exists {
+            scroll(app, by: 0.4)
+        }
+        XCTAssertTrue(element.exists, app.debugDescription)
+        let height = app.frame.height
+        for _ in 0..<4 where element.exists {
+            let distance = element.frame.minY / height - fraction
+            if abs(distance) * height < 24 { break }
+            scroll(app, by: min(0.6, max(-0.6, distance)))
+        }
+    }
+
+    /// Drags along the left margin, up for a positive fraction of the screen height and down for
+    /// a negative one, scrolling as far as the drag; the drag does not start on the chart, so its
+    /// selection gesture cannot take the touch over.
     @MainActor
     private func scroll(_ app: XCUIApplication, by fraction: CGFloat) {
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.85))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.85 - fraction))
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.5 + fraction / 2))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.5 - fraction / 2))
         start.press(
             forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
     }
